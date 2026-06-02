@@ -377,9 +377,9 @@ export default function AdminPage() {
         updateEvent = "TP_REVISED";
       }
 
-      console.log("UPDATE EVENT =", updateEvent);
-      console.log("OLD TP =", oldTp1);
-      console.log("NEW TP =", payload.tp_1);
+      if (oldSignal?.status !== "DONE" && payload.status === "DONE") {
+        updateEvent = "TARGET_ACHIEVED";
+      }
 
       const response = await supabase
         .from("signals")
@@ -403,6 +403,11 @@ export default function AdminPage() {
           historyOldValue = `TP1 ${oldTp1}`;
           historyNewValue = `TP1 ${tp1}`;
         }
+
+        if (updateEvent === "TARGET_ACHIEVED") {
+          historyOldValue = "RUNNING";
+          historyNewValue = `DONE (${profitPercentage || 0}%)`;
+        }
         await supabase.from("signal_updates").insert([
           {
             signal_id: editingId,
@@ -412,8 +417,6 @@ export default function AdminPage() {
             new_value: historyNewValue,
           },
         ]);
-
-        console.log("SAVE HISTORY:", updateEvent);
       }
 
       error = response.error;
@@ -570,13 +573,13 @@ export default function AdminPage() {
         inline: true,
       },
       {
-        name: "📌 AVG Lama",
-        value: oldAvg?.toString() || "-",
+        name: "📌 AVG",
+        value: `${oldAvg || "-"} ➜ ${avg || "-"}`,
         inline: true,
       },
       {
-        name: "📌 AVG Baru",
-        value: avg || "-",
+        name: "🎯 TP Saat Ini",
+        value: tp1 || "-",
         inline: true,
       },
     ];
@@ -598,13 +601,13 @@ export default function AdminPage() {
         inline: true,
       },
       {
-        name: "📌 AVG Lama",
-        value: oldAvg?.toString() || "-",
+        name: "📌 AVG",
+        value: `${oldAvg || "-"} ➜ ${avg || "-"}`,
         inline: true,
       },
       {
-        name: "📌 AVG Baru",
-        value: avg || "-",
+        name: "🎯 TP Saat Ini",
+        value: tp1 || "-",
         inline: true,
       },
     ];
@@ -1626,8 +1629,6 @@ font-bold
                             setSelectedSignal(signal);
 
                             await loadSignalHistory(signal.id);
-
-                            console.log("HISTORY:", signalHistory);
                           }}
                           className="
 bg-cyan-500/10
@@ -1766,7 +1767,9 @@ font-bold
                           ? "➕ Entry 3 Ditambahkan"
                           : item.event_type === "TP_REVISED"
                             ? "🎯 Target Direvisi"
-                            : item.event_type}
+                            : item.event_type === "TARGET_ACHIEVED"
+                              ? "✅ Target Achieved"
+                              : item.event_type}
                   </h3>
 
                   <p className="text-zinc-300">
