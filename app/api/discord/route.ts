@@ -18,6 +18,22 @@ export async function POST(req: Request) {
       webhook = process.env.DISCORD_WEBHOOK_PANTAU;
     }
 
+    if (body.channel === "HAKA") {
+      webhook = process.env.DISCORD_WEBHOOK_HAKA;
+    }
+
+    if (body.channel === "SNIPER") {
+      webhook = process.env.DISCORD_WEBHOOK_SNIPER;
+    }
+
+    if (body.channel === "BSJP") {
+      webhook = process.env.DISCORD_WEBHOOK_BSJP;
+    }
+
+    if (body.channel === "SWING") {
+      webhook = process.env.DISCORD_WEBHOOK_SWING;
+    }
+
     if (!webhook) {
       return NextResponse.json(
         {

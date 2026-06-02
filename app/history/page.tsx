@@ -496,7 +496,7 @@ rounded-2xl
               >
                 <option value="ALL">ALL TYPE</option>
                 <option value="HAKA PREOPEN">HAKA PREOPEN</option>
-                <option value="BSJC">BSJC</option>
+                <option value="BSJP">BSJP</option>
                 <option value="SNIPERAN">SNIPERAN</option>
                 <option value="SWING">SWING</option>
               </select>

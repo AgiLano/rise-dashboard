@@ -24,6 +24,10 @@ export default function AdminPage() {
 
   const [signals, setSignals] = useState<any[]>([]);
 
+  const [selectedSignal, setSelectedSignal] = useState<any>(null);
+
+  const [signalHistory, setSignalHistory] = useState<any[]>([]);
+
   const [search, setSearch] = useState("");
 
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -94,6 +98,12 @@ export default function AdminPage() {
     minute: "2-digit",
   });
 
+  const currentDate = new Date().toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
   useEffect(() => {
     const fetchMarket = async () => {
       try {
@@ -152,6 +162,20 @@ export default function AdminPage() {
       });
 
     setSignals(data || []);
+  }
+  async function loadSignalHistory(signalId: number) {
+    const { data, error } = await supabase
+      .from("signal_updates")
+      .select("*")
+      .eq("signal_id", signalId)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    setSignalHistory(data || []);
   }
 
   // =========================
@@ -284,9 +308,12 @@ export default function AdminPage() {
       toast.error("Lengkapi data terlebih dahulu!");
       return;
     }
-
     setLoading(true);
 
+    let oldSignal: any = null;
+    let updateEvent = "";
+    let oldTp1 = null;
+    let oldAvg = null;
     const payload = {
       tanggal_signal: formatLocalDate(signalDate),
       emiten: emiten.toUpperCase(),
@@ -327,10 +354,67 @@ export default function AdminPage() {
     // =========================
 
     if (editingId) {
+      const { data: existingSignal } = await supabase
+        .from("signals")
+        .select("*")
+        .eq("id", editingId)
+        .single();
+
+      oldSignal = existingSignal;
+      oldTp1 = oldSignal?.tp_1 || null;
+      oldAvg = oldSignal?.avg || null;
+      updateEvent = "";
+
+      if (!oldSignal?.entry_2 && payload.entry_2) {
+        updateEvent = "ENTRY_2_ADDED";
+      }
+
+      if (!oldSignal?.entry_3 && payload.entry_3) {
+        updateEvent = "ENTRY_3_ADDED";
+      }
+
+      if (oldSignal?.tp_1 && payload.tp_1 && oldSignal.tp_1 !== payload.tp_1) {
+        updateEvent = "TP_REVISED";
+      }
+
+      console.log("UPDATE EVENT =", updateEvent);
+      console.log("OLD TP =", oldTp1);
+      console.log("NEW TP =", payload.tp_1);
+
       const response = await supabase
         .from("signals")
         .update(payload)
         .eq("id", editingId);
+
+      if (updateEvent) {
+        let historyOldValue = "";
+        let historyNewValue = "";
+        if (updateEvent === "ENTRY_2_ADDED") {
+          historyOldValue = `AVG ${oldAvg}`;
+          historyNewValue = `AVG ${avg}`;
+        }
+
+        if (updateEvent === "ENTRY_3_ADDED") {
+          historyOldValue = `AVG ${oldAvg}`;
+          historyNewValue = `AVG ${avg}`;
+        }
+
+        if (updateEvent === "TP_REVISED") {
+          historyOldValue = `TP1 ${oldTp1}`;
+          historyNewValue = `TP1 ${tp1}`;
+        }
+        await supabase.from("signal_updates").insert([
+          {
+            signal_id: editingId,
+            emiten: emiten,
+            event_type: updateEvent,
+            old_value: historyOldValue,
+            new_value: historyNewValue,
+          },
+        ]);
+
+        console.log("SAVE HISTORY:", updateEvent);
+      }
 
       error = response.error;
     }
@@ -339,13 +423,29 @@ export default function AdminPage() {
     // INSERT
     // =========================
     else {
-      const response = await supabase.from("signals").insert([
-        {
-          ...payload,
-        },
-      ]);
+      const response = await supabase
+        .from("signals")
+        .insert([
+          {
+            ...payload,
+          },
+        ])
+        .select()
+        .single();
 
       error = response.error;
+
+      if (response.data) {
+        await supabase.from("signal_updates").insert([
+          {
+            signal_id: response.data.id,
+            emiten: emiten,
+            event_type: "SIGNAL_CREATED",
+            old_value: "-",
+            new_value: "Signal Dibuka",
+          },
+        ]);
+      }
     }
 
     setLoading(false);
@@ -359,6 +459,56 @@ export default function AdminPage() {
       editingId ? "Signal berhasil diupdate!" : "Signal berhasil disimpan!",
     );
 
+    let discordTitle = "🚀 SIGNAL BARU RISE";
+
+    let discordColor = 0xeab308;
+
+    if (!editingId) {
+      switch (tradingType) {
+        case "HAKA PREOPEN":
+          discordTitle = "🔥 HAKA PREOPEN";
+          discordColor = 0xf97316;
+          break;
+
+        case "BSJP":
+          discordTitle = "🎯 BSJP";
+          discordColor = 0x22c55e;
+          break;
+
+        case "SNIPERAN":
+          discordTitle = "⚡ SNIPERAN";
+          discordColor = 0xef4444;
+          break;
+
+        case "SWING":
+          discordTitle = "📈 SWING TRADE";
+          discordColor = 0x3b82f6;
+          break;
+      }
+    }
+
+    let discordChannel = "ARAHAN";
+
+    if (!editingId) {
+      switch (tradingType) {
+        case "HAKA PREOPEN":
+          discordChannel = "HAKA";
+          break;
+
+        case "SNIPERAN":
+          discordChannel = "SNIPER";
+          break;
+
+        case "BSJP":
+          discordChannel = "BSJP";
+          break;
+
+        case "SWING":
+          discordChannel = "SWING";
+          break;
+      }
+    }
+
     if (sendDiscord) {
       await fetch("/api/discord", {
         method: "POST",
@@ -366,12 +516,21 @@ export default function AdminPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          channel: editingId ? "ARAHAN" : "REKOM",
+          channel: discordChannel,
 
           embed: {
-            title: editingId ? "✏️ SIGNAL UPDATE RISE" : "🚀 SIGNAL BARU RISE",
+            title:
+              editingId && updateEvent === "ENTRY_2_ADDED"
+                ? "➕ ENTRY 2 DITAMBAHKAN"
+                : editingId && updateEvent === "ENTRY_3_ADDED"
+                  ? "➕ ENTRY 3 DITAMBAHKAN"
+                  : editingId && updateEvent === "TP_REVISED"
+                    ? "🎯 TARGET DIREVISI"
+                    : editingId
+                      ? "📌 UPDATE TRADE"
+                      : discordTitle,
 
-            color: editingId ? 0xf59e0b : 0xeab308,
+            color: editingId ? 0xf59e0b : discordColor,
 
             fields: [
               {
@@ -391,9 +550,14 @@ export default function AdminPage() {
               },
               {
                 name: "💰 Entry Area",
-                value: `Entry 1 : ${entry1 || "-"}
-Entry 2 : ${entry2 || "-"}
-Entry 3 : ${entry3 || "-"}`,
+                value: `➊ Entry 1 : ${entry1 || "-"}
+📅 ${formatLocalDate(entry1Date) || "-"}
+
+➋ Entry 2 : ${entry2 || "-"}
+📅 ${formatLocalDate(entry2Date) || "-"}
+
+➌ Entry 3 : ${entry3 || "-"}
+📅 ${formatLocalDate(entry3Date) || "-"}`,
                 inline: false,
               },
               {
@@ -401,13 +565,58 @@ Entry 3 : ${entry3 || "-"}`,
                 value: avg || "-",
                 inline: true,
               },
+              ...(updateEvent === "ENTRY_2_ADDED"
+                ? [
+                    {
+                      name: "➕ Entry 2 Baru",
+                      value: `${entry2}`,
+                      inline: true,
+                    },
+                    {
+                      name: "📌 Perubahan AVG",
+                      value: `${oldAvg} ➜ ${avg}`,
+                      inline: true,
+                    },
+                  ]
+                : []),
+              ...(updateEvent === "ENTRY_3_ADDED"
+                ? [
+                    {
+                      name: "➕ Entry 3 Baru",
+                      value: `${entry3}`,
+                      inline: true,
+                    },
+                    {
+                      name: "📌 Perubahan AVG",
+                      value: `${oldAvg} ➜ ${avg}`,
+                      inline: true,
+                    },
+                  ]
+                : []),
               {
                 name: "🎯 Target",
                 value: `${tp1 || "-"} | ${tp2 || "-"} | ${tp3 || "-"}`,
                 inline: true,
               },
+              ...(updateEvent === "TP_REVISED"
+                ? [
+                    {
+                      name: "🎯 Revisi Target",
+                      value: `${oldTp1} ➜ ${tp1}`,
+                      inline: false,
+                    },
+                  ]
+                : []),
               {
-                name: "🕒 Waktu",
+                name: editingId ? "📅 Update Date" : "📅 Tanggal Signal",
+                value: editingId
+                  ? currentDate
+                  : formatLocalDate(signalDate) || "-",
+                inline: true,
+              },
+
+              {
+                name: editingId ? "🕒 Update Time" : "🕒 Waktu",
                 value: `${currentTime} WIB`,
                 inline: true,
               },
@@ -647,8 +856,8 @@ ${watchlistNotes || "-"}
                   HAKA PREOPEN
                 </option>
 
-                <option value="BSJC" className="bg-black text-white">
-                  BSJC
+                <option value="BSJP" className="bg-black text-white">
+                  BSJP
                 </option>
 
                 <option value="SNIPERAN" className="bg-black text-white">
@@ -1082,8 +1291,8 @@ shadow-amber-300/10
               HAKA PREOPEN
             </option>
 
-            <option value="BSJC" className="bg-black text-white">
-              BSJC
+            <option value="BSJP" className="bg-black text-white">
+              BSJP
             </option>
 
             <option value="SNIPERAN" className="bg-black text-white">
@@ -1306,6 +1515,30 @@ font-bold
                     <td className="p-4">
                       <div className="flex gap-3">
                         <button
+                          onClick={async () => {
+                            setSelectedSignal(signal);
+
+                            await loadSignalHistory(signal.id);
+
+                            console.log("HISTORY:", signalHistory);
+                          }}
+                          className="
+bg-cyan-500/10
+hover:bg-cyan-500/20
+border
+border-cyan-500/20
+text-cyan-300
+transition-all
+duration-200
+px-4
+py-2
+rounded-xl
+font-bold
+"
+                        >
+                          Journey
+                        </button>
+                        <button
                           onClick={() => {
                             setEditingId(signal.id);
 
@@ -1401,6 +1634,42 @@ font-bold
             </table>
           </div>
         </div>
+        {selectedSignal && (
+          <div className="mt-8 bg-zinc-900 border border-white/5 rounded-3xl p-6">
+            <h2 className="text-2xl font-black text-cyan-300 mb-4">
+              TRADE JOURNEY - {selectedSignal.emiten}
+            </h2>
+
+            <div className="space-y-4">
+              {signalHistory.map((item) => (
+                <div
+                  key={item.id}
+                  className="border-l-4 border-cyan-400 pl-4 py-2"
+                >
+                  <p className="text-zinc-500 text-sm">
+                    {formatDate(item.created_at)}
+                  </p>
+
+                  <h3 className="font-bold text-white">
+                    {item.event_type === "SIGNAL_CREATED"
+                      ? "🔥 Signal Dibuka"
+                      : item.event_type === "ENTRY_2_ADDED"
+                        ? "➕ Entry 2 Ditambahkan"
+                        : item.event_type === "ENTRY_3_ADDED"
+                          ? "➕ Entry 3 Ditambahkan"
+                          : item.event_type === "TP_REVISED"
+                            ? "🎯 Target Direvisi"
+                            : item.event_type}
+                  </h3>
+
+                  <p className="text-zinc-300">
+                    {item.old_value} ➜ {item.new_value}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </main>
     </>
   );

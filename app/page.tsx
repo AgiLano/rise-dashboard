@@ -54,7 +54,7 @@ export default function Home() {
 
   const [openSections, setOpenSections] = useState({
     haka: true,
-    bsjc: true,
+    bsjp: true,
     sniperan: true,
     swing: true,
   });
@@ -183,7 +183,7 @@ export default function Home() {
     (s) => s.trading_type === "HAKA PREOPEN",
   );
 
-  const bsjcSignals = filteredSignals.filter((s) => s.trading_type === "BSJC");
+  const bsjpSignals = filteredSignals.filter((s) => s.trading_type === "BSJP");
 
   const sniperanSignals = filteredSignals.filter(
     (s) => s.trading_type === "SNIPERAN",
@@ -218,7 +218,7 @@ export default function Home() {
         ).toFixed(2)
       : "0";
 
-  const typeStats = ["BSJC", "HAKA PREOPEN", "SNIPERAN", "SWING"].map(
+  const typeStats = ["BSJP", "HAKA PREOPEN", "SNIPERAN", "SWING"].map(
     (type) => {
       const signalsByType = signals.filter((s) => s.trading_type === type);
 
@@ -575,8 +575,8 @@ export default function Home() {
               ALL TYPE
             </option>
 
-            <option value="BSJC" className="bg-black text-white">
-              BSJC
+            <option value="BSJP" className="bg-black text-white">
+              BSJP
             </option>
 
             <option value="HAKA PREOPEN" className="bg-black text-white">
@@ -958,7 +958,7 @@ export default function Home() {
         {/* SECTIONS */}
         {renderSection("HAKA PREOPEN", "haka", hakaSignals)}
 
-        {renderSection("BSJC", "bsjc", bsjcSignals)}
+        {renderSection("BSJP", "bsjp", bsjpSignals)}
 
         {renderSection("SNIPERAN", "sniperan", sniperanSignals)}
 
