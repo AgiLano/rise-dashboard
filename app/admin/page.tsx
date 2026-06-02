@@ -265,9 +265,9 @@ export default function AdminPage() {
 
     const finalTp1 = roundToTick(target3Percent);
 
-    console.log("AVG =", avg);
-    console.log("3% =", target3Percent);
-    console.log("FINAL TP =", finalTp1);
+    // console.log("AVG =", avg);
+    // console.log("3% =", target3Percent);
+    // console.log("FINAL TP =", finalTp1);
 
     setTp1(finalTp1.toString());
   }, [avg]);
@@ -365,20 +365,18 @@ export default function AdminPage() {
       oldAvg = oldSignal?.avg || null;
       updateEvent = "";
 
-      if (!oldSignal?.entry_2 && payload.entry_2) {
-        updateEvent = "ENTRY_2_ADDED";
-      }
-
-      if (!oldSignal?.entry_3 && payload.entry_3) {
-        updateEvent = "ENTRY_3_ADDED";
-      }
-
-      if (oldSignal?.tp_1 && payload.tp_1 && oldSignal.tp_1 !== payload.tp_1) {
-        updateEvent = "TP_REVISED";
-      }
-
       if (oldSignal?.status !== "DONE" && payload.status === "DONE") {
         updateEvent = "TARGET_ACHIEVED";
+      } else if (!oldSignal?.entry_3 && payload.entry_3) {
+        updateEvent = "ENTRY_3_ADDED";
+      } else if (!oldSignal?.entry_2 && payload.entry_2) {
+        updateEvent = "ENTRY_2_ADDED";
+      } else if (
+        oldSignal?.tp_1 &&
+        payload.tp_1 &&
+        oldSignal.tp_1 !== payload.tp_1
+      ) {
+        updateEvent = "TP_REVISED";
       }
 
       const response = await supabase
