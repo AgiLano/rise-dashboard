@@ -515,6 +515,44 @@ export default function AdminPage() {
 
     const isDoneDiscord = status === "DONE";
 
+    const doneFields = [
+      {
+        name: "📈 Emiten",
+        value: emiten,
+        inline: true,
+      },
+      {
+        name: "📊 Strategy",
+        value: tradingType,
+        inline: true,
+      },
+      {
+        name: "📌 AVG",
+        value: avg || "-",
+        inline: true,
+      },
+      {
+        name: "🚀 Profit",
+        value: `${profitPercentage || 0}%`,
+        inline: true,
+      },
+      {
+        name: "🎯 Highest Price",
+        value: highPrice || "-",
+        inline: true,
+      },
+      {
+        name: "📅 Signal Date",
+        value: formatLocalDate(signalDate) || "-",
+        inline: true,
+      },
+      {
+        name: "✅ Done Date",
+        value: formatLocalDate(doneDate) || "-",
+        inline: true,
+      },
+    ];
+
     if (sendDiscord) {
       await fetch("/api/discord", {
         method: "POST",
@@ -539,25 +577,27 @@ export default function AdminPage() {
 
             color: editingId ? 0xf59e0b : discordColor,
 
-            fields: [
-              {
-                name: "📈 Emiten",
-                value: emiten,
-                inline: true,
-              },
-              {
-                name: "📊 Strategy",
-                value: tradingType,
-                inline: true,
-              },
-              {
-                name: "📍 Status",
-                value: status,
-                inline: true,
-              },
-              {
-                name: "💰 Entry Area",
-                value: `➊ Entry 1 : ${entry1 || "-"}
+            fields: isDoneDiscord
+              ? doneFields
+              : [
+                  {
+                    name: "📈 Emiten",
+                    value: emiten,
+                    inline: true,
+                  },
+                  {
+                    name: "📊 Strategy",
+                    value: tradingType,
+                    inline: true,
+                  },
+                  {
+                    name: "📍 Status",
+                    value: status,
+                    inline: true,
+                  },
+                  {
+                    name: "💰 Entry Area",
+                    value: `➊ Entry 1 : ${entry1 || "-"}
 📅 ${formatLocalDate(entry1Date) || "-"}
 
 ➋ Entry 2 : ${entry2 || "-"}
@@ -565,69 +605,69 @@ export default function AdminPage() {
 
 ➌ Entry 3 : ${entry3 || "-"}
 📅 ${formatLocalDate(entry3Date) || "-"}`,
-                inline: false,
-              },
-              {
-                name: "📌 AVG",
-                value: avg || "-",
-                inline: true,
-              },
-              ...(updateEvent === "ENTRY_2_ADDED"
-                ? [
-                    {
-                      name: "➕ Entry 2 Baru",
-                      value: `${entry2}`,
-                      inline: true,
-                    },
-                    {
-                      name: "📌 Perubahan AVG",
-                      value: `${oldAvg} ➜ ${avg}`,
-                      inline: true,
-                    },
-                  ]
-                : []),
-              ...(updateEvent === "ENTRY_3_ADDED"
-                ? [
-                    {
-                      name: "➕ Entry 3 Baru",
-                      value: `${entry3}`,
-                      inline: true,
-                    },
-                    {
-                      name: "📌 Perubahan AVG",
-                      value: `${oldAvg} ➜ ${avg}`,
-                      inline: true,
-                    },
-                  ]
-                : []),
-              {
-                name: "🎯 Target",
-                value: `${tp1 || "-"} | ${tp2 || "-"} | ${tp3 || "-"}`,
-                inline: true,
-              },
-              ...(updateEvent === "TP_REVISED"
-                ? [
-                    {
-                      name: "🎯 Revisi Target",
-                      value: `${oldTp1} ➜ ${tp1}`,
-                      inline: false,
-                    },
-                  ]
-                : []),
-              {
-                name: editingId ? "📅 Update Date" : "📅 Tanggal Signal",
-                value: editingId
-                  ? currentDate
-                  : formatLocalDate(signalDate) || "-",
-                inline: true,
-              },
+                    inline: false,
+                  },
+                  {
+                    name: "📌 AVG",
+                    value: avg || "-",
+                    inline: true,
+                  },
+                  ...(updateEvent === "ENTRY_2_ADDED"
+                    ? [
+                        {
+                          name: "➕ Entry 2 Baru",
+                          value: `${entry2}`,
+                          inline: true,
+                        },
+                        {
+                          name: "📌 Perubahan AVG",
+                          value: `${oldAvg} ➜ ${avg}`,
+                          inline: true,
+                        },
+                      ]
+                    : []),
+                  ...(updateEvent === "ENTRY_3_ADDED"
+                    ? [
+                        {
+                          name: "➕ Entry 3 Baru",
+                          value: `${entry3}`,
+                          inline: true,
+                        },
+                        {
+                          name: "📌 Perubahan AVG",
+                          value: `${oldAvg} ➜ ${avg}`,
+                          inline: true,
+                        },
+                      ]
+                    : []),
+                  {
+                    name: "🎯 Target",
+                    value: `${tp1 || "-"} | ${tp2 || "-"} | ${tp3 || "-"}`,
+                    inline: true,
+                  },
+                  ...(updateEvent === "TP_REVISED"
+                    ? [
+                        {
+                          name: "🎯 Revisi Target",
+                          value: `${oldTp1} ➜ ${tp1}`,
+                          inline: false,
+                        },
+                      ]
+                    : []),
+                  {
+                    name: editingId ? "📅 Update Date" : "📅 Tanggal Signal",
+                    value: editingId
+                      ? currentDate
+                      : formatLocalDate(signalDate) || "-",
+                    inline: true,
+                  },
 
-              {
-                name: editingId ? "🕒 Update Time" : "🕒 Waktu",
-                value: `${currentTime} WIB`,
-                inline: true,
-              },
-            ],
+                  {
+                    name: editingId ? "🕒 Update Time" : "🕒 Waktu",
+                    value: `${currentTime} WIB`,
+                    inline: true,
+                  },
+                ],
           },
         }),
       });
