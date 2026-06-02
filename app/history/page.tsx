@@ -667,7 +667,20 @@ rounded-2xl
                                 key={item.id}
                                 className="bg-zinc-800 rounded-xl p-2.5"
                               >
-                                <p className="text-amber-300 font-bold">
+                                <p
+                                  className={
+                                    item.event_type === "SIGNAL_CREATED"
+                                      ? "text-amber-300 font-bold"
+                                      : item.event_type === "ENTRY_2_ADDED"
+                                        ? "text-emerald-400 font-bold"
+                                        : item.event_type === "ENTRY_3_ADDED"
+                                          ? "text-rose-400 font-bold"
+                                          : item.event_type ===
+                                              "TARGET_ACHIEVED"
+                                            ? "text-emerald-300 font-bold"
+                                            : "text-sky-400 font-bold"
+                                  }
+                                >
                                   {item.event_type === "SIGNAL_CREATED"
                                     ? "ENTRY 1"
                                     : item.event_type === "ENTRY_2_ADDED"
