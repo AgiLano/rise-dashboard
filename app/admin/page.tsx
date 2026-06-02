@@ -489,6 +489,10 @@ export default function AdminPage() {
 
     let discordChannel = "ARAHAN";
 
+    if (status === "DONE") {
+      discordChannel = "DONE";
+    }
+
     if (!editingId) {
       switch (tradingType) {
         case "HAKA PREOPEN":
