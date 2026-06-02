@@ -443,7 +443,7 @@ export default function AdminPage() {
             emiten: emiten,
             event_type: "SIGNAL_CREATED",
             old_value: "-",
-            new_value: "Signal Dibuka",
+            new_value: `AVG ${avg}`,
           },
         ]);
       }
@@ -733,6 +733,7 @@ export default function AdminPage() {
         }),
       });
     }
+    setEditingId(null);
 
     setEmiten("");
     setTradingType("");
@@ -817,6 +818,8 @@ ${watchlistNotes || "-"}
     const confirmDelete = confirm("Yakin ingin menghapus signal ini?");
 
     if (!confirmDelete) return;
+
+    await supabase.from("signals_updates").delete().eq("signal_id", id);
 
     const { error } = await supabase.from("signals").delete().eq("id", id);
 
@@ -1742,9 +1745,21 @@ font-bold
         </div>
         {selectedSignal && (
           <div className="mt-8 bg-zinc-900 border border-white/5 rounded-3xl p-6">
-            <h2 className="text-2xl font-black text-cyan-300 mb-4">
-              TRADE JOURNEY - {selectedSignal.emiten}
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-black text-cyan-300">
+                TRADE JOURNEY - {selectedSignal.emiten}
+              </h2>
+
+              <button
+                onClick={() => {
+                  setSelectedSignal(null);
+                  setSignalHistory([]);
+                }}
+                className="px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 font-bold"
+              >
+                Tutup
+              </button>
+            </div>
 
             <div className="space-y-4">
               {signalHistory.map((item) => (
@@ -1758,7 +1773,7 @@ font-bold
 
                   <h3 className="font-bold text-white">
                     {item.event_type === "SIGNAL_CREATED"
-                      ? "🔥 Signal Dibuka"
+                      ? "ENTRY 1"
                       : item.event_type === "ENTRY_2_ADDED"
                         ? "➕ Entry 2 Ditambahkan"
                         : item.event_type === "ENTRY_3_ADDED"
@@ -1771,7 +1786,9 @@ font-bold
                   </h3>
 
                   <p className="text-zinc-300">
-                    {item.old_value} ➜ {item.new_value}
+                    {item.event_type === "SIGNAL_CREATED"
+                      ? item.new_value
+                      : `${item.old_value} ➜ ${item.new_value}`}
                   </p>
                 </div>
               ))}
