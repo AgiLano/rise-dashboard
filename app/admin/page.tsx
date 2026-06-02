@@ -513,6 +513,8 @@ export default function AdminPage() {
       }
     }
 
+    const isDoneDiscord = status === "DONE";
+
     if (sendDiscord) {
       await fetch("/api/discord", {
         method: "POST",
@@ -523,8 +525,9 @@ export default function AdminPage() {
           channel: discordChannel,
 
           embed: {
-            title:
-              editingId && updateEvent === "ENTRY_2_ADDED"
+            title: isDoneDiscord
+              ? "🎯 TARGET ACHIEVED"
+              : editingId && updateEvent === "ENTRY_2_ADDED"
                 ? "➕ ENTRY 2 DITAMBAHKAN"
                 : editingId && updateEvent === "ENTRY_3_ADDED"
                   ? "➕ ENTRY 3 DITAMBAHKAN"
