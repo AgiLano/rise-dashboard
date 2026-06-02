@@ -639,117 +639,71 @@ rounded-2xl
                 </thead>
 
                 <tbody>
-                  {filteredSignals.map((signal) => (
-                    <tr
-                      key={signal.id}
-                      className="border-t border-zinc-800 hover:bg-zinc-800/40 transition-all duration-200"
-                    >
-                      <td className="px-4 py-5">
-                        {formatDate(signal.tanggal_signal)}
-                      </td>
+                  {filteredSignals.map((signal) => {
+                    const journey = getSignalJourney(signal.id);
+                    console.log(signal.emiten, journey);
 
-                      <td className="p-4 font-black tracking-tight text-amber-300">
-                        {signal.emiten}
-                      </td>
+                    return (
+                      <tr
+                        key={signal.id}
+                        className="border-t border-zinc-800 hover:bg-zinc-800/40 transition-all duration-200"
+                      >
+                        <td className="px-4 py-5">
+                          {formatDate(signal.tanggal_signal)}
+                        </td>
 
-                      <td className="px-4 py-5">{signal.trading_type}</td>
+                        <td className="p-4 font-black tracking-tight text-amber-300">
+                          {signal.emiten}
+                        </td>
 
-                      <td className="px-4 py-5">{signal.avg || "-"}</td>
+                        <td className="px-4 py-5">{signal.trading_type}</td>
 
-                      <td className="px-4 py-5">
-                        <div className="space-y-2 text-sm">
-                          {/* ENTRY 1 */}
-                          {Number(signal.entry_1) > 0 && (
-                            <div className="bg-zinc-800 rounded-xl p-2.5">
-                              <p className="text-amber-300 font-bold">
-                                ENTRY 1
-                              </p>
+                        <td className="px-4 py-5">{signal.avg || "-"}</td>
 
-                              <p className="text-white font-semibold">
-                                {signal.entry_1}
-                              </p>
+                        <td className="px-4 py-5">
+                          <div className="space-y-2 text-sm">
+                            {journey.map((item) => (
+                              <div
+                                key={item.id}
+                                className="bg-zinc-800 rounded-xl p-2.5"
+                              >
+                                <p className="text-amber-300 font-bold">
+                                  {item.event_type}
+                                </p>
 
-                              <p className="text-zinc-400 text-xs mt-1">
-                                {signal.entry_1_date
-                                  ? formatDate(signal.entry_1_date)
-                                  : "-"}
-                              </p>
-                            </div>
-                          )}
+                                <p className="text-white">{item.new_value}</p>
 
-                          {/* ENTRY 2 */}
-                          {Number(signal.entry_2) > 0 && (
-                            <div className="bg-zinc-800 rounded-xl p-2.5">
-                              <p className="text-emerald-300 font-bold">
-                                ENTRY 2
-                              </p>
+                                <p className="text-zinc-500 text-xs">
+                                  {formatDate(item.created_at)}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </td>
 
-                              <p className="text-white font-semibold">
-                                {signal.entry_2}
-                              </p>
+                        <td className="px-4 py-5">
+                          {signal.tp_1 || "-"} | {signal.tp_2 || "-"} |{" "}
+                          {signal.tp_3 || "-"}
+                        </td>
 
-                              <p className="text-zinc-400 text-xs mt-1">
-                                {signal.entry_2_date
-                                  ? formatDate(signal.entry_2_date)
-                                  : "-"}
-                              </p>
-                            </div>
-                          )}
+                        <td className="p-4 text-emerald-400 font-bold">
+                          {signal.profit_percentage || 0}%
+                        </td>
 
-                          {/* ENTRY 3 */}
-                          {Number(signal.entry_3) > 0 && (
-                            <div className="bg-zinc-800 rounded-xl p-2.5">
-                              <p className="text-rose-300 font-bold">ENTRY 3</p>
-
-                              <p className="text-white font-semibold">
-                                {signal.entry_3}
-                              </p>
-
-                              <p className="text-zinc-400 text-xs mt-1">
-                                {signal.entry_3_date
-                                  ? formatDate(signal.entry_3_date)
-                                  : "-"}
-                              </p>
-                            </div>
-                          )}
-
-                          {/* DONE */}
-                          {signal.done_date && (
-                            <div className="bg-zinc-800 border border-zinc-700 rounded-xl p-2.5">
-                              <p className="text-emerald-400 font-bold">DONE</p>
-
-                              <p className="text-zinc-300 text-xs mt-1">
-                                {signal.done_date
-                                  ? formatDate(signal.done_date)
-                                  : "-"}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-
-                      <td className="px-4 py-5">
-                        {signal.tp_1 || "-"} | {signal.tp_2 || "-"} |{" "}
-                        {signal.tp_3 || "-"}
-                      </td>
-
-                      <td className="p-4 text-emerald-400 font-bold">
-                        {signal.profit_percentage || 0}%
-                      </td>
-
-                      <td className="px-4 py-5">
-                        <span
-                          className={
-                            signal.status?.toUpperCase() === "DONE"
-                              ? "text-emerald-400 font-bold"
-                              : "text-rose-400 font-bold"
-                          }
-                        >
-                          {signal.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                        <td className="px-4 py-5">
+                          <span
+                            className={
+                              signal.status?.toUpperCase() === "DONE"
+                                ? "text-emerald-400 font-bold"
+                                : "text-rose-400 font-bold"
+                            }
+                          >
+                            {signal.status}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
