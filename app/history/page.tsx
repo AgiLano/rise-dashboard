@@ -668,7 +668,18 @@ rounded-2xl
                                 className="bg-zinc-800 rounded-xl p-2.5"
                               >
                                 <p className="text-amber-300 font-bold">
-                                  {item.event_type}
+                                  {item.event_type === "SIGNAL_CREATED"
+                                    ? "ENTRY 1"
+                                    : item.event_type === "ENTRY_2_ADDED"
+                                      ? "ENTRY 2"
+                                      : item.event_type === "ENTRY_3_ADDED"
+                                        ? "ENTRY 3"
+                                        : item.event_type === "TP_REVISED"
+                                          ? "TP REVISI"
+                                          : item.event_type ===
+                                              "TARGET_ACHIEVED"
+                                            ? "DONE"
+                                            : item.event_type}
                                 </p>
 
                                 <p className="text-white">{item.new_value}</p>
