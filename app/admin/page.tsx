@@ -165,7 +165,7 @@ export default function AdminPage() {
   }
   async function loadSignalHistory(signalId: number) {
     const { data, error } = await supabase
-      .from("signal_updates")
+      .from("signals_updates")
       .select("*")
       .eq("signal_id", signalId)
       .order("created_at", { ascending: true });
@@ -408,7 +408,7 @@ export default function AdminPage() {
           historyOldValue = "RUNNING";
           historyNewValue = `DONE (${profitPercentage || 0}%)`;
         }
-        await supabase.from("signal_updates").insert([
+        await supabase.from("signals_updates").insert([
           {
             signal_id: editingId,
             emiten: emiten,
@@ -439,7 +439,7 @@ export default function AdminPage() {
       error = response.error;
 
       if (response.data) {
-        await supabase.from("signal_updates").insert([
+        await supabase.from("signals_updates").insert([
           {
             signal_id: response.data.id,
             emiten: emiten,
