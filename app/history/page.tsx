@@ -186,6 +186,10 @@ export default function HistoryPage() {
     });
   }
 
+  function getSignalJourney(signalId: number) {
+    return journeyData.filter((item) => item.signal_id === signalId);
+  }
+
   // =========================
   // EXPORT PDF
   // =========================
