@@ -11,6 +11,8 @@ import "react-datepicker/dist/react-datepicker.css";
 export default function HistoryPage() {
   const [signals, setSignals] = useState<any[]>([]);
 
+  const [journeyData, setJourneyData] = useState<any[]>([]);
+
   const [search, setSearch] = useState("");
 
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -38,12 +40,27 @@ export default function HistoryPage() {
     setSignals(data || []);
   }
 
+  async function getJourney() {
+    const { data, error } = await supabase
+      .from("signals_updates")
+      .select("*")
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    setJourneyData(data || []);
+  }
+
   // =========================
   // REALTIME
   // =========================
 
   useEffect(() => {
     getSignals();
+    getJourney();
 
     const channel = supabase
       .channel("history-signals")
@@ -116,6 +133,7 @@ export default function HistoryPage() {
         signalDate.toDateString() === specificDateFilter.toDateString();
     }
 
+    console.log("JOURNEY DATA =", journeyData);
     return (
       cocokSearch && cocokStatus && cocokType && cocokDate && cocokSpecificDate
     );
