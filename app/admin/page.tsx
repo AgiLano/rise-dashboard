@@ -1761,6 +1761,19 @@ font-bold
     p-4
   "
           >
+            <div
+              className="
+    bg-zinc-900
+    border border-cyan-500/20
+    rounded-3xl
+    w-full
+    max-w-5xl
+    max-h-[85vh]
+    overflow-y-auto
+    p-8
+    shadow-2xl
+  "
+            ></div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-black text-cyan-300">
                 TRADE JOURNEY - {selectedSignal.emiten}
