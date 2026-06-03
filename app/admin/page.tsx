@@ -388,6 +388,11 @@ export default function AdminPage() {
         .update(payload)
         .eq("id", editingId);
 
+      console.log("EDITING ID =", editingId);
+      console.log("SIGNAL DATE =", signalDate);
+      console.log("PAYLOAD =", payload);
+      console.log("ERROR =", response.error);
+
       if (updateEvent) {
         let historyOldValue = "";
         let historyNewValue = "";
