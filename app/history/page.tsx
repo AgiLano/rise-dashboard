@@ -133,7 +133,6 @@ export default function HistoryPage() {
         signalDate.toDateString() === specificDateFilter.toDateString();
     }
 
-    console.log("JOURNEY DATA =", journeyData);
     return (
       cocokSearch && cocokStatus && cocokType && cocokDate && cocokSpecificDate
     );
@@ -641,7 +640,6 @@ rounded-2xl
                 <tbody>
                   {filteredSignals.map((signal) => {
                     const journey = getSignalJourney(signal.id);
-                    console.log(signal.emiten, journey);
 
                     return (
                       <tr
