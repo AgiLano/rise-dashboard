@@ -308,6 +308,10 @@ export default function AdminPage() {
       toast.error("Lengkapi data terlebih dahulu!");
       return;
     }
+    if (status === "DONE" && !highPrice) {
+      toast.error("High Price wajib diisi untuk status DONE!");
+      return;
+    }
     setLoading(true);
 
     let oldSignal: any = null;
