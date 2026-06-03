@@ -175,6 +175,8 @@ export default function AdminPage() {
       return;
     }
 
+    console.log("HISTORY =", data);
+
     setSignalHistory(data || []);
   }
 
