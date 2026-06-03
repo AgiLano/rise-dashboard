@@ -444,6 +444,25 @@ export default function HistoryPage() {
     currentY += 15;
 
     autoTable(doc, {
+      willDrawPage: (data) => {
+        doc.setFillColor(0, 0, 0);
+
+        doc.rect(
+          0,
+          0,
+          doc.internal.pageSize.getWidth(),
+          doc.internal.pageSize.getHeight(),
+          "F",
+        );
+
+        try {
+          doc.addImage(logo, "PNG", 14, 5, 12, 12);
+        } catch {}
+
+        doc.setTextColor(255, 215, 0);
+        doc.setFontSize(16);
+        doc.text("RISE HISTORY RECAP", 30, 13);
+      },
       startY: currentY,
 
       head: [
@@ -476,6 +495,20 @@ export default function HistoryPage() {
           `${signal.profit_percentage || 0}%`,
           signal.status,
         ]),
+
+      styles: {
+        fillColor: [15, 15, 15],
+        textColor: [255, 255, 255],
+      },
+
+      headStyles: {
+        fillColor: [255, 215, 0],
+        textColor: [0, 0, 0],
+      },
+
+      alternateRowStyles: {
+        fillColor: [25, 25, 25],
+      },
     });
 
     currentY = (doc as any).lastAutoTable.finalY + 15;
@@ -483,6 +516,32 @@ export default function HistoryPage() {
     doc.setTextColor(255, 215, 0);
 
     doc.setFontSize(18);
+
+    if (currentY > 220) {
+      doc.addPage();
+
+      doc.setFillColor(0, 0, 0);
+
+      doc.rect(
+        0,
+        0,
+        doc.internal.pageSize.getWidth(),
+        doc.internal.pageSize.getHeight(),
+        "F",
+      );
+
+      try {
+        doc.addImage(logo, "PNG", 14, 5, 12, 12);
+      } catch {}
+
+      doc.setTextColor(255, 215, 0);
+
+      doc.setFontSize(16);
+
+      doc.text("RISE HISTORY RECAP", 30, 13);
+
+      currentY = 30;
+    }
 
     doc.text("BSJP", 14, currentY);
 
@@ -517,6 +576,25 @@ export default function HistoryPage() {
     currentY += 15;
 
     autoTable(doc, {
+      willDrawPage: () => {
+        doc.setFillColor(0, 0, 0);
+
+        doc.rect(
+          0,
+          0,
+          doc.internal.pageSize.getWidth(),
+          doc.internal.pageSize.getHeight(),
+          "F",
+        );
+
+        try {
+          doc.addImage(logo, "PNG", 14, 5, 12, 12);
+        } catch {}
+
+        doc.setTextColor(255, 215, 0);
+        doc.setFontSize(16);
+        doc.text("RISE HISTORY RECAP", 30, 13);
+      },
       startY: currentY,
 
       head: [
@@ -549,6 +627,19 @@ export default function HistoryPage() {
           `${signal.profit_percentage || 0}%`,
           signal.status,
         ]),
+      styles: {
+        fillColor: [15, 15, 15],
+        textColor: [255, 255, 255],
+      },
+
+      headStyles: {
+        fillColor: [255, 215, 0],
+        textColor: [0, 0, 0],
+      },
+
+      alternateRowStyles: {
+        fillColor: [25, 25, 25],
+      },
     });
 
     currentY = (doc as any).lastAutoTable.finalY + 15;
@@ -556,6 +647,32 @@ export default function HistoryPage() {
     doc.setTextColor(255, 215, 0);
 
     doc.setFontSize(18);
+
+    if (currentY > 220) {
+      doc.addPage();
+
+      doc.setFillColor(0, 0, 0);
+
+      doc.rect(
+        0,
+        0,
+        doc.internal.pageSize.getWidth(),
+        doc.internal.pageSize.getHeight(),
+        "F",
+      );
+
+      try {
+        doc.addImage(logo, "PNG", 14, 5, 12, 12);
+      } catch {}
+
+      doc.setTextColor(255, 215, 0);
+
+      doc.setFontSize(16);
+
+      doc.text("RISE HISTORY RECAP", 30, 13);
+
+      currentY = 30;
+    }
 
     doc.text("SWING", 14, currentY);
 
@@ -590,6 +707,25 @@ export default function HistoryPage() {
     currentY += 15;
 
     autoTable(doc, {
+      willDrawPage: () => {
+        doc.setFillColor(0, 0, 0);
+
+        doc.rect(
+          0,
+          0,
+          doc.internal.pageSize.getWidth(),
+          doc.internal.pageSize.getHeight(),
+          "F",
+        );
+
+        try {
+          doc.addImage(logo, "PNG", 14, 5, 12, 12);
+        } catch {}
+
+        doc.setTextColor(255, 215, 0);
+        doc.setFontSize(16);
+        doc.text("RISE HISTORY RECAP", 30, 13);
+      },
       startY: currentY,
 
       head: [
@@ -622,6 +758,19 @@ export default function HistoryPage() {
           `${signal.profit_percentage || 0}%`,
           signal.status,
         ]),
+      styles: {
+        fillColor: [15, 15, 15],
+        textColor: [255, 255, 255],
+      },
+
+      headStyles: {
+        fillColor: [255, 215, 0],
+        textColor: [0, 0, 0],
+      },
+
+      alternateRowStyles: {
+        fillColor: [25, 25, 25],
+      },
     });
 
     const pageCount = doc.getNumberOfPages();
