@@ -449,6 +449,7 @@ export default function AdminPage() {
             event_type: "SIGNAL_CREATED",
             old_value: "-",
             new_value: `AVG ${avg}`,
+            event_date: formatLocalDate(signalDate),
           },
         ]);
       }
