@@ -1820,7 +1820,15 @@ font-bold
                     className="border-l-4 border-cyan-400 pl-4 py-2"
                   >
                     <p className="text-zinc-500 text-sm">
-                      {formatDate(item.event_date || item.created_at)}
+                      {item.event_type === "SIGNAL_CREATED"
+                        ? formatDate(selectedSignal.entry_1_date)
+                        : item.event_type === "ENTRY_2_ADDED"
+                          ? formatDate(selectedSignal.entry_2_date)
+                          : item.event_type === "ENTRY_3_ADDED"
+                            ? formatDate(selectedSignal.entry_3_date)
+                            : item.event_type === "TARGET_ACHIEVED"
+                              ? formatDate(selectedSignal.done_date)
+                              : formatDate(item.event_date || item.created_at)}
                     </p>
 
                     <h3 className="font-bold text-white">
