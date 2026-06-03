@@ -415,6 +415,20 @@ export default function AdminPage() {
           historyOldValue = "RUNNING";
           historyNewValue = `DONE (${profitPercentage || 0}%)`;
         }
+        let historyDate = formatLocalDate(signalDate);
+
+        if (updateEvent === "ENTRY_2_ADDED") {
+          historyDate = formatLocalDate(entry2Date);
+        }
+
+        if (updateEvent === "ENTRY_3_ADDED") {
+          historyDate = formatLocalDate(entry3Date);
+        }
+
+        if (updateEvent === "TARGET_ACHIEVED") {
+          historyDate = formatLocalDate(doneDate);
+        }
+
         await supabase.from("signals_updates").insert([
           {
             signal_id: editingId,
@@ -422,7 +436,7 @@ export default function AdminPage() {
             event_type: updateEvent,
             old_value: historyOldValue,
             new_value: historyNewValue,
-            event_date: formatLocalDate(signalDate),
+            event_date: historyDate,
           },
         ]);
       }
