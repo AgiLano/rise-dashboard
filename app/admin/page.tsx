@@ -417,6 +417,7 @@ export default function AdminPage() {
             event_type: updateEvent,
             old_value: historyOldValue,
             new_value: historyNewValue,
+            event_date: formatLocalDate(signalDate),
           },
         ]);
       }
@@ -1767,7 +1768,7 @@ font-bold
     border border-cyan-500/20
     rounded-3xl
     w-full
-    max-w-5xl
+    max-w-3xl
     max-h-[85vh]
     overflow-y-auto
     p-8
@@ -1797,7 +1798,7 @@ font-bold
                     className="border-l-4 border-cyan-400 pl-4 py-2"
                   >
                     <p className="text-zinc-500 text-sm">
-                      {formatDate(item.created_at)}
+                      {formatDate(item.event_date || item.created_at)}
                     </p>
 
                     <h3 className="font-bold text-white">
