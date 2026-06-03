@@ -1631,8 +1631,6 @@ font-bold
                       <div className="flex gap-3">
                         <button
                           onClick={async () => {
-                            console.log("JOURNEY CLICK", signal);
-
                             setSelectedSignal(signal);
 
                             await loadSignalHistory(signal.id);
