@@ -1773,54 +1773,55 @@ font-bold
     p-8
     shadow-2xl
   "
-            ></div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-black text-cyan-300">
-                TRADE JOURNEY - {selectedSignal.emiten}
-              </h2>
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-black text-cyan-300">
+                  TRADE JOURNEY - {selectedSignal.emiten}
+                </h2>
 
-              <button
-                onClick={() => {
-                  setSelectedSignal(null);
-                  setSignalHistory([]);
-                }}
-                className="px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 font-bold"
-              >
-                Tutup
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {signalHistory.map((item) => (
-                <div
-                  key={item.id}
-                  className="border-l-4 border-cyan-400 pl-4 py-2"
+                <button
+                  onClick={() => {
+                    setSelectedSignal(null);
+                    setSignalHistory([]);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 font-bold"
                 >
-                  <p className="text-zinc-500 text-sm">
-                    {formatDate(item.created_at)}
-                  </p>
+                  Tutup
+                </button>
+              </div>
 
-                  <h3 className="font-bold text-white">
-                    {item.event_type === "SIGNAL_CREATED"
-                      ? "ENTRY 1"
-                      : item.event_type === "ENTRY_2_ADDED"
-                        ? "➕ Entry 2 Ditambahkan"
-                        : item.event_type === "ENTRY_3_ADDED"
-                          ? "➕ Entry 3 Ditambahkan"
-                          : item.event_type === "TP_REVISED"
-                            ? "🎯 Target Direvisi"
-                            : item.event_type === "TARGET_ACHIEVED"
-                              ? "✅ Target Achieved"
-                              : item.event_type}
-                  </h3>
+              <div className="space-y-4">
+                {signalHistory.map((item) => (
+                  <div
+                    key={item.id}
+                    className="border-l-4 border-cyan-400 pl-4 py-2"
+                  >
+                    <p className="text-zinc-500 text-sm">
+                      {formatDate(item.created_at)}
+                    </p>
 
-                  <p className="text-zinc-300">
-                    {item.event_type === "SIGNAL_CREATED"
-                      ? item.new_value
-                      : `${item.old_value} ➜ ${item.new_value}`}
-                  </p>
-                </div>
-              ))}
+                    <h3 className="font-bold text-white">
+                      {item.event_type === "SIGNAL_CREATED"
+                        ? "ENTRY 1"
+                        : item.event_type === "ENTRY_2_ADDED"
+                          ? "➕ Entry 2 Ditambahkan"
+                          : item.event_type === "ENTRY_3_ADDED"
+                            ? "➕ Entry 3 Ditambahkan"
+                            : item.event_type === "TP_REVISED"
+                              ? "🎯 Target Direvisi"
+                              : item.event_type === "TARGET_ACHIEVED"
+                                ? "✅ Target Achieved"
+                                : item.event_type}
+                    </h3>
+
+                    <p className="text-zinc-300">
+                      {item.event_type === "SIGNAL_CREATED"
+                        ? item.new_value
+                        : `${item.old_value} ➜ ${item.new_value}`}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
