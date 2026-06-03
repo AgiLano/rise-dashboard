@@ -203,6 +203,25 @@ export default function HistoryPage() {
   // EXPORT PDF
   // =========================
 
+  const pdfGroups = [
+    {
+      name: "HAKA PREOPEN",
+      signals: groupedSignals["HAKA PREOPEN"],
+    },
+    {
+      name: "SNIPERAN",
+      signals: groupedSignals["SNIPERAN"],
+    },
+    {
+      name: "BSJP",
+      signals: groupedSignals["BSJP"],
+    },
+    {
+      name: "SWING",
+      signals: groupedSignals["SWING"],
+    },
+  ];
+
   function exportPDF() {
     const doc = new jsPDF();
 
@@ -242,6 +261,44 @@ export default function HistoryPage() {
 
     doc.text(`Winrate : ${winrate}%`, 14, 67);
 
+    let currentY = 75;
+
+    doc.setTextColor(255, 215, 0);
+
+    doc.setFontSize(18);
+
+    doc.text("HAKA PREOPEN", 14, currentY);
+
+    currentY += 10;
+
+    doc.setTextColor(220, 220, 220);
+
+    doc.setFontSize(11);
+
+    doc.text(`Signal : ${groupedSignals["HAKA PREOPEN"].length}`, 14, currentY);
+
+    currentY += 8;
+
+    doc.text(
+      `Done : ${
+        groupedSignals["HAKA PREOPEN"].filter((s) => s.status === "DONE").length
+      }`,
+      14,
+      currentY,
+    );
+
+    currentY += 8;
+
+    doc.text(
+      `Running : ${
+        groupedSignals["HAKA PREOPEN"].filter((s) => s.status !== "DONE").length
+      }`,
+      14,
+      currentY,
+    );
+
+    currentY += 15;
+
     autoTable(doc, {
       willDrawPage: (data) => {
         try {
@@ -268,7 +325,7 @@ export default function HistoryPage() {
           doc.text("RISE HISTORY RECAP", 30, 13);
         }
       },
-      startY: 75,
+      startY: currentY,
       margin: {
         top: 25,
       },
@@ -286,32 +343,52 @@ export default function HistoryPage() {
         ],
       ],
 
-      body: filteredSignals.map((signal) => [
-        formatDate(signal.tanggal_signal),
-        signal.emiten,
-        signal.trading_type,
-        signal.avg || "-",
-        [
-          signal.entry_1
-            ? `E1 ${signal.entry_1} (${formatDate(signal.entry_1_date)})`
-            : null,
+      body: groupedSignals["HAKA PREOPEN"]
+        .sort((a, b) => {
+          const order = {
+            "HAKA PREOPEN": 1,
+            SNIPERAN: 2,
+            BSJP: 3,
+            SWING: 4,
+          };
 
-          signal.entry_2 && Number(signal.entry_2) > 0
-            ? `E2 ${signal.entry_2} (${formatDate(signal.entry_2_date)})`
-            : null,
+          const groupCompare =
+            (order[a.trading_type as keyof typeof order] || 99) -
+            (order[b.trading_type as keyof typeof order] || 99);
 
-          signal.entry_3 && Number(signal.entry_3) > 0
-            ? `E3 ${signal.entry_3} (${formatDate(signal.entry_3_date)})`
-            : null,
+          if (groupCompare !== 0) return groupCompare;
 
-          signal.done_date ? `DONE (${formatDate(signal.done_date)})` : null,
-        ]
-          .filter(Boolean)
-          .join("\n"),
-        `${signal.tp_1 || "-"} | ${signal.tp_2 || "-"} | ${signal.tp_3 || "-"}`,
-        `${signal.profit_percentage || 0}%`,
-        signal.status,
-      ]),
+          if (a.status === "DONE" && b.status !== "DONE") return -1;
+          if (a.status !== "DONE" && b.status === "DONE") return 1;
+
+          return a.emiten.localeCompare(b.emiten);
+        })
+        .map((signal) => [
+          formatDate(signal.tanggal_signal),
+          signal.emiten,
+          signal.trading_type,
+          signal.avg || "-",
+          [
+            signal.entry_1
+              ? `E1 ${signal.entry_1} (${formatDate(signal.entry_1_date)})`
+              : null,
+
+            signal.entry_2 && Number(signal.entry_2) > 0
+              ? `E2 ${signal.entry_2} (${formatDate(signal.entry_2_date)})`
+              : null,
+
+            signal.entry_3 && Number(signal.entry_3) > 0
+              ? `E3 ${signal.entry_3} (${formatDate(signal.entry_3_date)})`
+              : null,
+
+            signal.done_date ? `DONE (${formatDate(signal.done_date)})` : null,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+          `${signal.tp_1 || "-"} | ${signal.tp_2 || "-"} | ${signal.tp_3 || "-"}`,
+          `${signal.profit_percentage || 0}%`,
+          signal.status,
+        ]),
 
       styles: {
         fillColor: [15, 15, 15],
@@ -326,6 +403,225 @@ export default function HistoryPage() {
       alternateRowStyles: {
         fillColor: [25, 25, 25],
       },
+    });
+
+    currentY = (doc as any).lastAutoTable.finalY + 15;
+
+    doc.setTextColor(255, 215, 0);
+
+    doc.setFontSize(18);
+
+    doc.text("SNIPERAN", 14, currentY);
+
+    currentY += 10;
+
+    doc.setTextColor(220, 220, 220);
+
+    doc.setFontSize(11);
+
+    doc.text(`Signal : ${groupedSignals["SNIPERAN"].length}`, 14, currentY);
+
+    currentY += 8;
+
+    doc.text(
+      `Done : ${
+        groupedSignals["SNIPERAN"].filter((s) => s.status === "DONE").length
+      }`,
+      14,
+      currentY,
+    );
+
+    currentY += 8;
+
+    doc.text(
+      `Running : ${
+        groupedSignals["SNIPERAN"].filter((s) => s.status !== "DONE").length
+      }`,
+      14,
+      currentY,
+    );
+
+    currentY += 15;
+
+    autoTable(doc, {
+      startY: currentY,
+
+      head: [
+        [
+          "Date",
+          "Emiten",
+          "Type",
+          "AVG",
+          "Timeline",
+          "TP1/TP2/TP3",
+          "Profit",
+          "Status",
+        ],
+      ],
+
+      body: groupedSignals["SNIPERAN"]
+        .sort((a, b) => {
+          if (a.status === "DONE" && b.status !== "DONE") return -1;
+          if (a.status !== "DONE" && b.status === "DONE") return 1;
+
+          return a.emiten.localeCompare(b.emiten);
+        })
+        .map((signal) => [
+          formatDate(signal.tanggal_signal),
+          signal.emiten,
+          signal.trading_type,
+          signal.avg || "-",
+          "-",
+          `${signal.tp_1 || "-"} | ${signal.tp_2 || "-"} | ${signal.tp_3 || "-"}`,
+          `${signal.profit_percentage || 0}%`,
+          signal.status,
+        ]),
+    });
+
+    currentY = (doc as any).lastAutoTable.finalY + 15;
+
+    doc.setTextColor(255, 215, 0);
+
+    doc.setFontSize(18);
+
+    doc.text("BSJP", 14, currentY);
+
+    currentY += 10;
+
+    doc.setTextColor(220, 220, 220);
+
+    doc.setFontSize(11);
+
+    doc.text(`Signal : ${groupedSignals["BSJP"].length}`, 14, currentY);
+
+    currentY += 8;
+
+    doc.text(
+      `Done : ${
+        groupedSignals["BSJP"].filter((s) => s.status === "DONE").length
+      }`,
+      14,
+      currentY,
+    );
+
+    currentY += 8;
+
+    doc.text(
+      `Running : ${
+        groupedSignals["BSJP"].filter((s) => s.status !== "DONE").length
+      }`,
+      14,
+      currentY,
+    );
+
+    currentY += 15;
+
+    autoTable(doc, {
+      startY: currentY,
+
+      head: [
+        [
+          "Date",
+          "Emiten",
+          "Type",
+          "AVG",
+          "Timeline",
+          "TP1/TP2/TP3",
+          "Profit",
+          "Status",
+        ],
+      ],
+
+      body: groupedSignals["BSJP"]
+        .sort((a, b) => {
+          if (a.status === "DONE" && b.status !== "DONE") return -1;
+          if (a.status !== "DONE" && b.status === "DONE") return 1;
+
+          return a.emiten.localeCompare(b.emiten);
+        })
+        .map((signal) => [
+          formatDate(signal.tanggal_signal),
+          signal.emiten,
+          signal.trading_type,
+          signal.avg || "-",
+          "-",
+          `${signal.tp_1 || "-"} | ${signal.tp_2 || "-"} | ${signal.tp_3 || "-"}`,
+          `${signal.profit_percentage || 0}%`,
+          signal.status,
+        ]),
+    });
+
+    currentY = (doc as any).lastAutoTable.finalY + 15;
+
+    doc.setTextColor(255, 215, 0);
+
+    doc.setFontSize(18);
+
+    doc.text("SWING", 14, currentY);
+
+    currentY += 10;
+
+    doc.setTextColor(220, 220, 220);
+
+    doc.setFontSize(11);
+
+    doc.text(`Signal : ${groupedSignals["SWING"].length}`, 14, currentY);
+
+    currentY += 8;
+
+    doc.text(
+      `Done : ${
+        groupedSignals["SWING"].filter((s) => s.status === "DONE").length
+      }`,
+      14,
+      currentY,
+    );
+
+    currentY += 8;
+
+    doc.text(
+      `Running : ${
+        groupedSignals["SWING"].filter((s) => s.status !== "DONE").length
+      }`,
+      14,
+      currentY,
+    );
+
+    currentY += 15;
+
+    autoTable(doc, {
+      startY: currentY,
+
+      head: [
+        [
+          "Date",
+          "Emiten",
+          "Type",
+          "AVG",
+          "Timeline",
+          "TP1/TP2/TP3",
+          "Profit",
+          "Status",
+        ],
+      ],
+
+      body: groupedSignals["SWING"]
+        .sort((a, b) => {
+          if (a.status === "DONE" && b.status !== "DONE") return -1;
+          if (a.status !== "DONE" && b.status === "DONE") return 1;
+
+          return a.emiten.localeCompare(b.emiten);
+        })
+        .map((signal) => [
+          formatDate(signal.tanggal_signal),
+          signal.emiten,
+          signal.trading_type,
+          signal.avg || "-",
+          "-",
+          `${signal.tp_1 || "-"} | ${signal.tp_2 || "-"} | ${signal.tp_3 || "-"}`,
+          `${signal.profit_percentage || 0}%`,
+          signal.status,
+        ]),
     });
 
     const pageCount = doc.getNumberOfPages();
@@ -837,44 +1133,79 @@ rounded-2xl
                     return (
                       <div key={groupName}>
                         <h2 className="text-3xl font-black text-amber-300 mb-4">
-                          {groupName}
+                          {groupName} ({groupSignals.length})
                         </h2>
 
+                        <p className="text-zinc-400 mb-4">
+                          Done:{" "}
+                          {
+                            groupSignals.filter((s) => s.status === "DONE")
+                              .length
+                          }
+                          {" • "}
+                          Running:{" "}
+                          {
+                            groupSignals.filter((s) => s.status !== "DONE")
+                              .length
+                          }
+                        </p>
+
+                        <p className="text-emerald-300 mb-4 font-semibold">
+                          Avg Profit:{" "}
+                          {(
+                            groupSignals.reduce(
+                              (acc, curr) =>
+                                acc + Number(curr.profit_percentage || 0),
+                              0,
+                            ) / groupSignals.length
+                          ).toFixed(2)}
+                          %
+                        </p>
+
                         <div className="space-y-3">
-                          {groupSignals.map((signal) => (
-                            <div
-                              key={signal.id}
-                              className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4"
-                            >
-                              <div className="flex justify-between items-center">
-                                <div>
-                                  <h3 className="text-2xl font-black text-amber-300">
-                                    {signal.emiten}
-                                  </h3>
+                          {groupSignals
+                            .sort((a, b) => {
+                              if (a.status === "DONE" && b.status !== "DONE")
+                                return -1;
+                              if (a.status !== "DONE" && b.status === "DONE")
+                                return 1;
 
-                                  <p className="text-zinc-400">
-                                    {signal.trading_type}
-                                  </p>
-                                </div>
+                              return a.emiten.localeCompare(b.emiten);
+                            })
+                            .map((signal) => (
+                              <div
+                                key={signal.id}
+                                className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4"
+                              >
+                                <div className="flex justify-between items-center">
+                                  <div>
+                                    <h3 className="text-2xl font-black text-amber-300">
+                                      {signal.emiten}
+                                    </h3>
 
-                                <div className="text-right">
-                                  <p
-                                    className={
-                                      signal.status === "DONE"
-                                        ? "text-emerald-400 font-bold"
-                                        : "text-rose-400 font-bold"
-                                    }
-                                  >
-                                    {signal.status}
-                                  </p>
+                                    <p className="text-zinc-400">
+                                      {signal.trading_type}
+                                    </p>
+                                  </div>
 
-                                  <p className="text-xl font-black">
-                                    {signal.profit_percentage || 0}%
-                                  </p>
+                                  <div className="text-right">
+                                    <p
+                                      className={
+                                        signal.status === "DONE"
+                                          ? "text-emerald-400 font-bold"
+                                          : "text-rose-400 font-bold"
+                                      }
+                                    >
+                                      {signal.status}
+                                    </p>
+
+                                    <p className="text-xl font-black">
+                                      {signal.profit_percentage || 0}%
+                                    </p>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
                         </div>
                       </div>
                     );
