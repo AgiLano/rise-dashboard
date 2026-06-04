@@ -263,6 +263,26 @@ export default function HistoryPage() {
 
     let currentY = 75;
 
+    const drawPageHeader = () => {
+      doc.setFillColor(0, 0, 0);
+
+      doc.rect(
+        0,
+        0,
+        doc.internal.pageSize.getWidth(),
+        doc.internal.pageSize.getHeight(),
+        "F",
+      );
+
+      try {
+        doc.addImage(logo, "PNG", 14, 6, 18, 18);
+      } catch {}
+
+      doc.setTextColor(255, 215, 0);
+      doc.setFontSize(26);
+      doc.text("RISE HISTORY RECAP", 38, 18);
+    };
+
     doc.setTextColor(255, 215, 0);
 
     doc.setFontSize(18);
