@@ -261,7 +261,7 @@ export default function HistoryPage() {
 
     doc.text(`Winrate : ${winrate}%`, 14, 67);
 
-    let currentY = 90;
+    let currentY = 85;
 
     const drawPageHeader = () => {
       doc.setFillColor(0, 0, 0);
@@ -273,6 +273,10 @@ export default function HistoryPage() {
         doc.internal.pageSize.getHeight(),
         "F",
       );
+
+      try {
+        doc.addImage(logo, "PNG", 55, 95, 100, 100);
+      } catch {}
 
       try {
         doc.addImage(logo, "PNG", 14, 6, 18, 18);
