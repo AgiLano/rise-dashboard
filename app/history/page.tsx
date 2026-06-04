@@ -483,7 +483,7 @@ export default function HistoryPage() {
         doc.setFontSize(16);
         doc.text("RISE HISTORY RECAP", 30, 13);
       },
-      startY: currentY,
+      startY: 30,
 
       head: [
         [
@@ -615,7 +615,7 @@ export default function HistoryPage() {
         doc.setFontSize(16);
         doc.text("RISE HISTORY RECAP", 30, 13);
       },
-      startY: currentY,
+      startY: 30,
 
       head: [
         [
@@ -746,7 +746,7 @@ export default function HistoryPage() {
         doc.setFontSize(16);
         doc.text("RISE HISTORY RECAP", 30, 13);
       },
-      startY: currentY,
+      startY: 30,
 
       head: [
         [
