@@ -470,10 +470,6 @@ export default function HistoryPage() {
     currentY += 15;
 
     autoTable(doc, {
-      willDrawPage: () => {
-        drawPageHeader();
-      },
-
       startY: currentY,
 
       head: [
