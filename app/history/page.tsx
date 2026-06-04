@@ -646,25 +646,7 @@ export default function HistoryPage() {
     if (currentY > 220) {
       doc.addPage();
 
-      doc.setFillColor(0, 0, 0);
-
-      doc.rect(
-        0,
-        0,
-        doc.internal.pageSize.getWidth(),
-        doc.internal.pageSize.getHeight(),
-        "F",
-      );
-
-      try {
-        doc.addImage(logo, "PNG", 14, 5, 12, 12);
-      } catch {}
-
-      doc.setTextColor(255, 215, 0);
-
-      doc.setFontSize(16);
-
-      doc.text("RISE HISTORY RECAP", 30, 13);
+      drawPageHeader();
 
       currentY = 30;
     }
