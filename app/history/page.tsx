@@ -624,13 +624,12 @@ export default function HistoryPage() {
 
     doc.setFontSize(18);
 
-    doc.addPage();
-
-    drawPageHeader();
-
-    currentY = 30;
-
     if (groupedSignals["SWING"].length > 0) {
+      doc.addPage();
+
+      drawPageHeader();
+
+      currentY = 30;
       doc.text("SWING", 14, currentY);
 
       currentY += 10;
