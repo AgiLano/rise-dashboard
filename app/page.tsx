@@ -461,7 +461,15 @@ export default function Home() {
 
               <p className="text-zinc-400">
                 Profit:{" "}
-                <span className="font-black tracking-tight text-emerald-400">
+                <span
+                  className={`font-black tracking-tight ${
+                    Number(signal.profit_percentage || 0) < 0
+                      ? "text-rose-400"
+                      : Number(signal.profit_percentage || 0) > 0
+                        ? "text-emerald-400"
+                        : "text-zinc-100"
+                  }`}
+                >
                   {signal.profit_percentage || 0}%
                 </span>
               </p>
