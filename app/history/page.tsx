@@ -474,7 +474,7 @@ export default function HistoryPage() {
         drawPageHeader();
       },
 
-      startY: 30,
+      startY: currentY,
 
       head: [
         [
@@ -528,31 +528,11 @@ export default function HistoryPage() {
 
     doc.setFontSize(18);
 
-    if (currentY > 220) {
-      doc.addPage();
+    doc.addPage();
 
-      doc.setFillColor(0, 0, 0);
+    drawPageHeader();
 
-      doc.rect(
-        0,
-        0,
-        doc.internal.pageSize.getWidth(),
-        doc.internal.pageSize.getHeight(),
-        "F",
-      );
-
-      try {
-        doc.addImage(logo, "PNG", 14, 5, 12, 12);
-      } catch {}
-
-      doc.setTextColor(255, 215, 0);
-
-      doc.setFontSize(16);
-
-      doc.text("RISE HISTORY RECAP", 30, 13);
-
-      currentY = 30;
-    }
+    currentY = 30;
 
     doc.text("BSJP", 14, currentY);
 
@@ -590,7 +570,8 @@ export default function HistoryPage() {
       willDrawPage: () => {
         drawPageHeader();
       },
-      startY: 30,
+
+      startY: currentY,
 
       head: [
         [
@@ -643,13 +624,11 @@ export default function HistoryPage() {
 
     doc.setFontSize(18);
 
-    if (currentY > 220) {
-      doc.addPage();
+    doc.addPage();
 
-      drawPageHeader();
+    drawPageHeader();
 
-      currentY = 30;
-    }
+    currentY = 30;
 
     if (groupedSignals["SWING"].length > 0) {
       doc.text("SWING", 14, currentY);
@@ -688,7 +667,8 @@ export default function HistoryPage() {
         willDrawPage: () => {
           drawPageHeader();
         },
-        startY: 30,
+
+        startY: currentY,
 
         head: [
           [
