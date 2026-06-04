@@ -464,25 +464,10 @@ export default function HistoryPage() {
     currentY += 15;
 
     autoTable(doc, {
-      willDrawPage: (data) => {
-        doc.setFillColor(0, 0, 0);
-
-        doc.rect(
-          0,
-          0,
-          doc.internal.pageSize.getWidth(),
-          doc.internal.pageSize.getHeight(),
-          "F",
-        );
-
-        try {
-          doc.addImage(logo, "PNG", 14, 5, 12, 12);
-        } catch {}
-
-        doc.setTextColor(255, 215, 0);
-        doc.setFontSize(16);
-        doc.text("RISE HISTORY RECAP", 30, 13);
+      willDrawPage: () => {
+        drawPageHeader();
       },
+
       startY: 30,
 
       head: [
@@ -597,23 +582,7 @@ export default function HistoryPage() {
 
     autoTable(doc, {
       willDrawPage: () => {
-        doc.setFillColor(0, 0, 0);
-
-        doc.rect(
-          0,
-          0,
-          doc.internal.pageSize.getWidth(),
-          doc.internal.pageSize.getHeight(),
-          "F",
-        );
-
-        try {
-          doc.addImage(logo, "PNG", 14, 5, 12, 12);
-        } catch {}
-
-        doc.setTextColor(255, 215, 0);
-        doc.setFontSize(16);
-        doc.text("RISE HISTORY RECAP", 30, 13);
+        drawPageHeader();
       },
       startY: 30,
 
@@ -694,104 +663,90 @@ export default function HistoryPage() {
       currentY = 30;
     }
 
-    doc.text("SWING", 14, currentY);
+    if (groupedSignals["SWING"].length > 0) {
+      doc.text("SWING", 14, currentY);
 
-    currentY += 10;
+      currentY += 10;
 
-    doc.setTextColor(220, 220, 220);
+      doc.setTextColor(220, 220, 220);
 
-    doc.setFontSize(11);
+      doc.setFontSize(11);
 
-    doc.text(`Signal : ${groupedSignals["SWING"].length}`, 14, currentY);
+      doc.text(`Signal : ${groupedSignals["SWING"].length}`, 14, currentY);
 
-    currentY += 8;
+      currentY += 8;
 
-    doc.text(
-      `Done : ${
-        groupedSignals["SWING"].filter((s) => s.status === "DONE").length
-      }`,
-      14,
-      currentY,
-    );
+      doc.text(
+        `Done : ${
+          groupedSignals["SWING"].filter((s) => s.status === "DONE").length
+        }`,
+        14,
+        currentY,
+      );
 
-    currentY += 8;
+      currentY += 8;
 
-    doc.text(
-      `Running : ${
-        groupedSignals["SWING"].filter((s) => s.status !== "DONE").length
-      }`,
-      14,
-      currentY,
-    );
+      doc.text(
+        `Running : ${
+          groupedSignals["SWING"].filter((s) => s.status !== "DONE").length
+        }`,
+        14,
+        currentY,
+      );
 
-    currentY += 15;
+      currentY += 15;
 
-    autoTable(doc, {
-      willDrawPage: () => {
-        doc.setFillColor(0, 0, 0);
+      autoTable(doc, {
+        willDrawPage: () => {
+          drawPageHeader();
+        },
+        startY: 30,
 
-        doc.rect(
-          0,
-          0,
-          doc.internal.pageSize.getWidth(),
-          doc.internal.pageSize.getHeight(),
-          "F",
-        );
-
-        try {
-          doc.addImage(logo, "PNG", 14, 5, 12, 12);
-        } catch {}
-
-        doc.setTextColor(255, 215, 0);
-        doc.setFontSize(16);
-        doc.text("RISE HISTORY RECAP", 30, 13);
-      },
-      startY: 30,
-
-      head: [
-        [
-          "Date",
-          "Emiten",
-          "Type",
-          "AVG",
-          "Timeline",
-          "TP1/TP2/TP3",
-          "Profit",
-          "Status",
+        head: [
+          [
+            "Date",
+            "Emiten",
+            "Type",
+            "AVG",
+            "Timeline",
+            "TP1/TP2/TP3",
+            "Profit",
+            "Status",
+          ],
         ],
-      ],
 
-      body: groupedSignals["SWING"]
-        .sort((a, b) => {
-          if (a.status === "DONE" && b.status !== "DONE") return -1;
-          if (a.status !== "DONE" && b.status === "DONE") return 1;
+        body: groupedSignals["SWING"]
+          .sort((a, b) => {
+            if (a.status === "DONE" && b.status !== "DONE") return -1;
+            if (a.status !== "DONE" && b.status === "DONE") return 1;
 
-          return a.emiten.localeCompare(b.emiten);
-        })
-        .map((signal) => [
-          formatDate(signal.tanggal_signal),
-          signal.emiten,
-          signal.trading_type,
-          signal.avg || "-",
-          "-",
-          `${signal.tp_1 || "-"} | ${signal.tp_2 || "-"} | ${signal.tp_3 || "-"}`,
-          `${signal.profit_percentage || 0}%`,
-          signal.status,
-        ]),
-      styles: {
-        fillColor: [15, 15, 15],
-        textColor: [255, 255, 255],
-      },
+            return a.emiten.localeCompare(b.emiten);
+          })
+          .map((signal) => [
+            formatDate(signal.tanggal_signal),
+            signal.emiten,
+            signal.trading_type,
+            signal.avg || "-",
+            "-",
+            `${signal.tp_1 || "-"} | ${signal.tp_2 || "-"} | ${signal.tp_3 || "-"}`,
+            `${signal.profit_percentage || 0}%`,
+            signal.status,
+          ]),
+        styles: {
+          fillColor: [15, 15, 15],
+          textColor: [255, 255, 255],
+        },
 
-      headStyles: {
-        fillColor: [255, 215, 0],
-        textColor: [0, 0, 0],
-      },
+        headStyles: {
+          fillColor: [255, 215, 0],
+          textColor: [0, 0, 0],
+        },
 
-      alternateRowStyles: {
-        fillColor: [25, 25, 25],
-      },
-    });
+        alternateRowStyles: {
+          fillColor: [25, 25, 25],
+        },
+      });
+    }
 
     const pageCount = doc.getNumberOfPages();
 
