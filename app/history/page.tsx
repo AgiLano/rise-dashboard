@@ -435,7 +435,7 @@ export default function HistoryPage() {
 
     drawPageHeader();
 
-    currentY = 30;
+    currentY = 35;
 
     doc.text("SNIPERAN", 14, currentY);
 
@@ -528,7 +528,7 @@ export default function HistoryPage() {
 
     drawPageHeader();
 
-    currentY = 30;
+    currentY = 35;
 
     doc.text("BSJP", 14, currentY);
 
@@ -621,7 +621,7 @@ export default function HistoryPage() {
 
       drawPageHeader();
 
-      currentY = 30;
+      currentY = 35;
       doc.text("SWING", 14, currentY);
 
       currentY += 10;
