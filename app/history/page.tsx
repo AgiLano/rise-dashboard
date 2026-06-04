@@ -431,6 +431,12 @@ export default function HistoryPage() {
 
     doc.setFontSize(18);
 
+    doc.addPage();
+
+    drawPageHeader();
+
+    currentY = 30;
+
     doc.text("SNIPERAN", 14, currentY);
 
     currentY += 10;
