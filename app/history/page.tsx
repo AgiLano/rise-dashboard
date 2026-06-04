@@ -261,7 +261,7 @@ export default function HistoryPage() {
 
     doc.text(`Winrate : ${winrate}%`, 14, 67);
 
-    let currentY = 75;
+    let currentY = 90;
 
     const drawPageHeader = () => {
       doc.setFillColor(0, 0, 0);
