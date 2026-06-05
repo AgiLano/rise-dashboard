@@ -52,7 +52,7 @@ export default function Navbar() {
       if (isMember) {
         localStorage.removeItem("rise_member");
 
-        router.push("/member-login");
+        router.push("/login");
         router.refresh();
 
         return;
