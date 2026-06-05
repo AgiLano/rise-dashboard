@@ -1,26 +1,66 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
 
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isMember, setIsMember] = useState(false);
 
   useEffect(() => {
-    async function checkSession() {
+    async function loadUser() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
 
       setIsAdmin(!!session);
+
+      const member = localStorage.getItem("rise_member");
+
+      setIsMember(!!member);
     }
 
-    checkSession();
+    loadUser();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAdmin(!!session);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
+
+  async function handleLogout() {
+    try {
+      if (isAdmin) {
+        await supabase.auth.signOut();
+
+        router.push("/login");
+        router.refresh();
+
+        return;
+      }
+
+      if (isMember) {
+        localStorage.removeItem("rise_member");
+
+        router.push("/member-login");
+        router.refresh();
+
+        return;
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }
 
   return (
     <div className="w-full border-b border-zinc-800 bg-black sticky top-0 z-50">
@@ -78,6 +118,15 @@ export default function Navbar() {
           >
             History Recap
           </Link>
+
+          {(isAdmin || isMember) && (
+            <button
+              onClick={handleLogout}
+              className="px-3 md:px-5 py-2 text-sm md:text-base rounded-xl font-bold bg-red-900/40 border border-red-500/30 text-red-300 hover:bg-red-900/60 transition-all"
+            >
+              Logout
+            </button>
+          )}
         </div>
       </div>
     </div>

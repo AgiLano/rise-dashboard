@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { supabase } from "../lib/supabase";
 
@@ -30,7 +31,11 @@ import {
 } from "recharts";
 
 export default function Home() {
+  const router = useRouter();
+
   const [signals, setSignals] = useState<any[]>([]);
+
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   const [search, setSearch] = useState("");
 
@@ -116,6 +121,28 @@ export default function Home() {
   // =========================
   // REALTIME
   // =========================
+
+  useEffect(() => {
+    async function checkAccess() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const member = localStorage.getItem("rise_member");
+
+      console.log("SESSION =", session);
+      console.log("MEMBER =", member);
+
+      if (!session && !member) {
+        router.push("/login");
+        return;
+      }
+
+      setCheckingAuth(false);
+    }
+
+    checkAccess();
+  }, [router]);
 
   useEffect(() => {
     getSignals();
@@ -523,6 +550,13 @@ export default function Home() {
 
         {openSections[keyName] && renderSignals(data)}
       </section>
+    );
+  }
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center text-white">
+        Loading...
+      </div>
     );
   }
 

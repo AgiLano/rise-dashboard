@@ -8,659 +8,268 @@ import autoTable from "jspdf-autotable";
 import { toPng } from "html-to-image";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+
 export default function HistoryPage() {
   const [signals, setSignals] = useState<any[]>([]);
-
   const [journeyData, setJourneyData] = useState<any[]>([]);
-
   const [search, setSearch] = useState("");
-
   const [statusFilter, setStatusFilter] = useState("ALL");
-
   const [typeFilter, setTypeFilter] = useState("ALL");
-
   const [dateFilter, setDateFilter] = useState("ALL");
-
   const [specificDateFilter, setSpecificDateFilter] = useState<Date | null>(
     null,
   );
 
-  // =========================
-  // FETCH
-  // =========================
+  useEffect(() => {
+    async function fetchHistoryData() {
+      const { data: signalsData } = await supabase
+        .from("signals")
+        .select("*")
+        .order("tanggal_signal", { ascending: false });
 
-  async function getSignals() {
-    const { data } = await supabase
-      .from("signals")
-      .select("*")
-      .order("tanggal_signal", {
-        ascending: false,
-      });
+      setSignals(signalsData || []);
 
-    setSignals(data || []);
-  }
+      const { data: journeyData } = await supabase
+        .from("signals_updates")
+        .select("*")
+        .order("created_at", { ascending: true });
 
-  async function getJourney() {
-    const { data, error } = await supabase
-      .from("signals_updates")
-      .select("*")
-      .order("created_at", { ascending: true });
-
-    if (error) {
-      console.error(error);
-      return;
+      setJourneyData(journeyData || []);
     }
 
-    setJourneyData(data || []);
-  }
-
-  // =========================
-  // REALTIME
-  // =========================
-
-  useEffect(() => {
-    getSignals();
-    getJourney();
-
-    const channel = supabase
-      .channel("history-signals")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "signals",
-        },
-        () => {
-          getSignals();
-        },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    fetchHistoryData();
   }, []);
 
-  // =========================
-  // FILTER
-  // =========================
+  const formatDate = (value: string | Date | null | undefined) => {
+    if (!value) return "-";
+    const date = typeof value === "string" ? new Date(value) : value;
+    if (Number.isNaN(date.getTime())) return "-";
+    return date.toLocaleDateString("en-US", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
 
-  const now = new Date();
+  const isSameDate = (first: Date, second: Date) =>
+    first.getFullYear() === second.getFullYear() &&
+    first.getMonth() === second.getMonth() &&
+    first.getDate() === second.getDate();
+
+  const isInDateFilter = (signalDate: string | Date | null | undefined) => {
+    if (!signalDate) return false;
+    const date =
+      typeof signalDate === "string" ? new Date(signalDate) : signalDate;
+    if (Number.isNaN(date.getTime())) return false;
+
+    if (specificDateFilter) {
+      return isSameDate(date, specificDateFilter);
+    }
+
+    const now = new Date();
+    if (dateFilter === "ALL") return true;
+    if (dateFilter === "TODAY") return isSameDate(date, now);
+
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (dateFilter === "WEEK") return diffDays >= 0 && diffDays <= 7;
+    if (dateFilter === "MONTH") return diffDays >= 0 && diffDays <= 30;
+
+    return true;
+  };
+
+  const getSignalJourney = (signalId: any) =>
+    journeyData
+      .filter((item) => item.signal_id === signalId)
+      .sort(
+        (a, b) =>
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+      );
 
   const filteredSignals = signals.filter((signal) => {
     const cocokSearch = signal.emiten
       ?.toLowerCase()
       .includes(search.toLowerCase());
-
     const cocokStatus =
       statusFilter === "ALL" ? true : signal.status === statusFilter;
-
     const cocokType =
       typeFilter === "ALL" ? true : signal.trading_type === typeFilter;
-
-    let cocokDate = true;
-
-    const signalDate = signal.tanggal_signal
-      ? new Date(signal.tanggal_signal)
-      : null;
-    if (signalDate) {
-      if (dateFilter === "TODAY") {
-        cocokDate =
-          signalDate.getDate() === now.getDate() &&
-          signalDate.getMonth() === now.getMonth() &&
-          signalDate.getFullYear() === now.getFullYear();
-      }
-
-      if (dateFilter === "WEEK") {
-        const diff =
-          (now.getTime() - signalDate.getTime()) / (1000 * 60 * 60 * 24);
-
-        cocokDate = diff <= 7;
-      }
-
-      if (dateFilter === "MONTH") {
-        cocokDate =
-          signalDate.getMonth() === now.getMonth() &&
-          signalDate.getFullYear() === now.getFullYear();
-      }
-    }
-
-    let cocokSpecificDate = true;
-
-    if (specificDateFilter && signalDate) {
-      cocokSpecificDate =
-        signalDate.toDateString() === specificDateFilter.toDateString();
-    }
-
-    return (
-      cocokSearch && cocokStatus && cocokType && cocokDate && cocokSpecificDate
-    );
+    const cocokDate = isInDateFilter(signal.tanggal_signal);
+    return cocokSearch && cocokStatus && cocokType && cocokDate;
   });
 
-  // =========================
-  // STATS
-  // =========================
+  const sortedSignals = [...filteredSignals].sort((a, b) => {
+    const dateA = new Date(a.tanggal_signal).getTime();
+    const dateB = new Date(b.tanggal_signal).getTime();
+    return dateB - dateA;
+  });
+
+  const groupedSignals = {
+    "HAKA PREOPEN": filteredSignals.filter(
+      (signal) => signal.trading_type === "HAKA PREOPEN",
+    ),
+    SNIPERAN: filteredSignals.filter(
+      (signal) => signal.trading_type === "SNIPERAN",
+    ),
+    BSJP: filteredSignals.filter((signal) => signal.trading_type === "BSJP"),
+    SWING: filteredSignals.filter((signal) => signal.trading_type === "SWING"),
+  };
 
   const totalSignals = filteredSignals.length;
-
-  const totalDone = filteredSignals.filter(
-    (s) => s.status?.toUpperCase() === "DONE",
-  ).length;
-
   const totalRunning = filteredSignals.filter(
-    (s) => s.status?.toUpperCase() === "RUNNING",
+    (signal) => signal.status === "RUNNING",
   ).length;
-
+  const totalDone = filteredSignals.filter(
+    (signal) => signal.status === "DONE",
+  ).length;
+  const winrate =
+    totalSignals > 0 ? ((totalDone / totalSignals) * 100).toFixed(1) : "0";
   const avgProfit =
-    totalSignals > 0
+    filteredSignals.length > 0
       ? (
           filteredSignals.reduce(
             (acc, curr) => acc + Number(curr.profit_percentage || 0),
             0,
-          ) / totalSignals
+          ) / filteredSignals.length
         ).toFixed(2)
       : "0";
 
-  const winrate =
-    totalSignals > 0 ? ((totalDone / totalSignals) * 100).toFixed(1) : "0";
-  const groupedSignals = {
-    "HAKA PREOPEN": filteredSignals.filter(
-      (s) => s.trading_type === "HAKA PREOPEN",
-    ),
-
-    SNIPERAN: filteredSignals.filter((s) => s.trading_type === "SNIPERAN"),
-
-    BSJP: filteredSignals.filter((s) => s.trading_type === "BSJP"),
-
-    SWING: filteredSignals.filter((s) => s.trading_type === "SWING"),
-  };
-  // =========================
-  // FORMAT DATE
-  // =========================
-
-  function formatDate(date: string) {
-    if (!date) return "-";
-
-    const parsedDate = new Date(date);
-
-    if (isNaN(parsedDate.getTime())) {
-      return "-";
-    }
-
-    return parsedDate.toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  }
-
-  function getSignalJourney(signalId: number) {
-    return journeyData.filter((item) => item.signal_id === signalId);
-  }
-
-  // =========================
-  // EXPORT PDF
-  // =========================
-
-  const pdfGroups = [
-    {
-      name: "HAKA PREOPEN",
-      signals: groupedSignals["HAKA PREOPEN"],
-    },
-    {
-      name: "SNIPERAN",
-      signals: groupedSignals["SNIPERAN"],
-    },
-    {
-      name: "BSJP",
-      signals: groupedSignals["BSJP"],
-    },
-    {
-      name: "SWING",
-      signals: groupedSignals["SWING"],
-    },
-  ];
-
   function exportPDF() {
     const doc = new jsPDF();
-
-    doc.setFillColor(0, 0, 0);
-
-    doc.rect(
-      0,
-      0,
-      doc.internal.pageSize.getWidth(),
-      doc.internal.pageSize.getHeight(),
-      "F",
-    );
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 14;
+    const headerBottom = 34;
 
     const logo = new Image();
-
     logo.src = "/logo-rise-transparent.png";
 
-    doc.addImage(logo, "PNG", 14, 6, 18, 18);
+    // ===== HELPERS =====
 
-    doc.setTextColor(255, 215, 0);
-
-    doc.setFontSize(26);
-
-    doc.text("RISE HISTORY RECAP", 38, 18);
-
-    doc.setTextColor(220, 220, 220);
-
-    doc.setFontSize(12);
-
-    doc.text(`Total Signals : ${totalSignals}`, 14, 35);
-
-    doc.text(`Done : ${totalDone}`, 14, 43);
-
-    doc.text(`Running : ${totalRunning}`, 14, 51);
-
-    doc.text(`Avg Profit : ${avgProfit}%`, 14, 59);
-
-    doc.text(`Winrate : ${winrate}%`, 14, 67);
-
-    let currentY = 85;
-
-    const drawPageHeader = () => {
+    const fillPageBackground = () => {
       doc.setFillColor(0, 0, 0);
-
-      doc.rect(
-        0,
-        0,
-        doc.internal.pageSize.getWidth(),
-        doc.internal.pageSize.getHeight(),
-        "F",
-      );
-
-      try {
-        doc.addImage(logo, "PNG", 55, 95, 100, 100);
-      } catch {}
-
-      try {
-        doc.addImage(logo, "PNG", 14, 6, 18, 18);
-      } catch {}
-
-      doc.setTextColor(255, 215, 0);
-      doc.setFontSize(26);
-      doc.text("RISE HISTORY RECAP", 38, 18);
+      doc.rect(0, 0, pageWidth, pageHeight, "F");
     };
 
-    doc.setTextColor(255, 215, 0);
-
-    doc.setFontSize(18);
-
-    doc.text("HAKA PREOPEN", 14, currentY);
-
-    currentY += 10;
-
-    doc.setTextColor(220, 220, 220);
-
-    doc.setFontSize(11);
-
-    doc.text(`Signal : ${groupedSignals["HAKA PREOPEN"].length}`, 14, currentY);
-
-    currentY += 8;
-
-    doc.text(
-      `Done : ${
-        groupedSignals["HAKA PREOPEN"].filter((s) => s.status === "DONE").length
-      }`,
-      14,
-      currentY,
-    );
-
-    currentY += 8;
-
-    doc.text(
-      `Running : ${
-        groupedSignals["HAKA PREOPEN"].filter((s) => s.status !== "DONE").length
-      }`,
-      14,
-      currentY,
-    );
-
-    currentY += 15;
-
-    autoTable(doc, {
-      willDrawPage: (data) => {
-        try {
-          doc.addImage(logo, "PNG", 78, 120, 35, 35);
-        } catch (e) {}
-
-        if (data.pageNumber > 1) {
-          doc.setFillColor(0, 0, 0);
-
-          doc.rect(
-            0,
-            0,
-            doc.internal.pageSize.getWidth(),
-            doc.internal.pageSize.getHeight(),
-            "F",
-          );
-
-          doc.addImage(logo, "PNG", 14, 5, 12, 12);
-
-          doc.setTextColor(255, 215, 0);
-
-          doc.setFontSize(16);
-
-          doc.text("RISE HISTORY RECAP", 30, 13);
-        }
-      },
-      startY: currentY,
-      margin: {
-        top: 25,
-      },
-
-      head: [
-        [
-          "Date",
-          "Emiten",
-          "Type",
-          "AVG",
-          "Timeline",
-          "TP1/TP2/TP3",
-          "Profit",
-          "Status",
-        ],
-      ],
-
-      body: groupedSignals["HAKA PREOPEN"]
-        .sort((a, b) => {
-          const order = {
-            "HAKA PREOPEN": 1,
-            SNIPERAN: 2,
-            BSJP: 3,
-            SWING: 4,
-          };
-
-          const groupCompare =
-            (order[a.trading_type as keyof typeof order] || 99) -
-            (order[b.trading_type as keyof typeof order] || 99);
-
-          if (groupCompare !== 0) return groupCompare;
-
-          if (a.status === "DONE" && b.status !== "DONE") return -1;
-          if (a.status !== "DONE" && b.status === "DONE") return 1;
-
-          return a.emiten.localeCompare(b.emiten);
-        })
-        .map((signal) => [
-          formatDate(signal.tanggal_signal),
-          signal.emiten,
-          signal.trading_type,
-          signal.avg || "-",
-          [
-            signal.entry_1
-              ? `E1 ${signal.entry_1} (${formatDate(signal.entry_1_date)})`
-              : null,
-
-            signal.entry_2 && Number(signal.entry_2) > 0
-              ? `E2 ${signal.entry_2} (${formatDate(signal.entry_2_date)})`
-              : null,
-
-            signal.entry_3 && Number(signal.entry_3) > 0
-              ? `E3 ${signal.entry_3} (${formatDate(signal.entry_3_date)})`
-              : null,
-
-            signal.done_date ? `DONE (${formatDate(signal.done_date)})` : null,
-          ]
-            .filter(Boolean)
-            .join("\n"),
-          `${signal.tp_1 || "-"} | ${signal.tp_2 || "-"} | ${signal.tp_3 || "-"}`,
-          `${signal.profit_percentage || 0}%`,
-          signal.status,
-        ]),
-
-      styles: {
-        fillColor: [15, 15, 15],
-        textColor: [255, 255, 255],
-      },
-
-      headStyles: {
-        fillColor: [255, 215, 0],
-        textColor: [0, 0, 0],
-      },
-
-      alternateRowStyles: {
-        fillColor: [25, 25, 25],
-      },
-    });
-
-    currentY = (doc as any).lastAutoTable.finalY + 15;
-
-    doc.setTextColor(255, 215, 0);
-
-    doc.setFontSize(18);
-
-    doc.addPage();
-
-    drawPageHeader();
-
-    currentY = 35;
-
-    doc.text("SNIPERAN", 14, currentY);
-
-    currentY += 10;
-
-    doc.setTextColor(220, 220, 220);
-
-    doc.setFontSize(11);
-
-    doc.text(`Signal : ${groupedSignals["SNIPERAN"].length}`, 14, currentY);
-
-    currentY += 8;
-
-    doc.text(
-      `Done : ${
-        groupedSignals["SNIPERAN"].filter((s) => s.status === "DONE").length
-      }`,
-      14,
-      currentY,
-    );
-
-    currentY += 8;
-
-    doc.text(
-      `Running : ${
-        groupedSignals["SNIPERAN"].filter((s) => s.status !== "DONE").length
-      }`,
-      14,
-      currentY,
-    );
-
-    currentY += 15;
-
-    autoTable(doc, {
-      startY: currentY,
-
-      head: [
-        [
-          "Date",
-          "Emiten",
-          "Type",
-          "AVG",
-          "Timeline",
-          "TP1/TP2/TP3",
-          "Profit",
-          "Status",
-        ],
-      ],
-
-      body: groupedSignals["SNIPERAN"]
-        .sort((a, b) => {
-          if (a.status === "DONE" && b.status !== "DONE") return -1;
-          if (a.status !== "DONE" && b.status === "DONE") return 1;
-
-          return a.emiten.localeCompare(b.emiten);
-        })
-        .map((signal) => [
-          formatDate(signal.tanggal_signal),
-          signal.emiten,
-          signal.trading_type,
-          signal.avg || "-",
-          "-",
-          `${signal.tp_1 || "-"} | ${signal.tp_2 || "-"} | ${signal.tp_3 || "-"}`,
-          `${signal.profit_percentage || 0}%`,
-          signal.status,
-        ]),
-
-      styles: {
-        fillColor: [15, 15, 15],
-        textColor: [255, 255, 255],
-      },
-
-      headStyles: {
-        fillColor: [255, 215, 0],
-        textColor: [0, 0, 0],
-      },
-
-      alternateRowStyles: {
-        fillColor: [25, 25, 25],
-      },
-    });
-
-    currentY = (doc as any).lastAutoTable.finalY + 15;
-
-    doc.setTextColor(255, 215, 0);
-
-    doc.setFontSize(18);
-
-    doc.addPage();
-
-    drawPageHeader();
-
-    currentY = 35;
-
-    doc.text("BSJP", 14, currentY);
-
-    currentY += 10;
-
-    doc.setTextColor(220, 220, 220);
-
-    doc.setFontSize(11);
-
-    doc.text(`Signal : ${groupedSignals["BSJP"].length}`, 14, currentY);
-
-    currentY += 8;
-
-    doc.text(
-      `Done : ${
-        groupedSignals["BSJP"].filter((s) => s.status === "DONE").length
-      }`,
-      14,
-      currentY,
-    );
-
-    currentY += 8;
-
-    doc.text(
-      `Running : ${
-        groupedSignals["BSJP"].filter((s) => s.status !== "DONE").length
-      }`,
-      14,
-      currentY,
-    );
-
-    currentY += 15;
-
-    autoTable(doc, {
-      startY: currentY,
-
-      head: [
-        [
-          "Date",
-          "Emiten",
-          "Type",
-          "AVG",
-          "Timeline",
-          "TP1/TP2/TP3",
-          "Profit",
-          "Status",
-        ],
-      ],
-
-      body: groupedSignals["BSJP"]
-        .sort((a, b) => {
-          if (a.status === "DONE" && b.status !== "DONE") return -1;
-          if (a.status !== "DONE" && b.status === "DONE") return 1;
-
-          return a.emiten.localeCompare(b.emiten);
-        })
-        .map((signal) => [
-          formatDate(signal.tanggal_signal),
-          signal.emiten,
-          signal.trading_type,
-          signal.avg || "-",
-          "-",
-          `${signal.tp_1 || "-"} | ${signal.tp_2 || "-"} | ${signal.tp_3 || "-"}`,
-          `${signal.profit_percentage || 0}%`,
-          signal.status,
-        ]),
-      styles: {
-        fillColor: [15, 15, 15],
-        textColor: [255, 255, 255],
-      },
-
-      headStyles: {
-        fillColor: [255, 215, 0],
-        textColor: [0, 0, 0],
-      },
-
-      alternateRowStyles: {
-        fillColor: [25, 25, 25],
-      },
-    });
-
-    currentY = (doc as any).lastAutoTable.finalY + 15;
-
-    doc.setTextColor(255, 215, 0);
-
-    doc.setFontSize(18);
-
-    if (groupedSignals["SWING"].length > 0) {
-      doc.addPage();
-
-      drawPageHeader();
-
-      currentY = 35;
-      doc.text("SWING", 14, currentY);
-
-      currentY += 10;
+    const drawPageHeader = () => {
+      try {
+        doc.addImage(logo, "PNG", margin, 10, 18, 18);
+      } catch {
+        // ignore if image fails to load synchronously
+      }
+      doc.setTextColor(255, 215, 0);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(18);
+      doc.text("RISE HISTORY RECAP", margin + 24, 24);
+      doc.setDrawColor(255, 215, 0);
+      doc.setLineWidth(0.4);
+      doc.line(margin, headerBottom, pageWidth - margin, headerBottom);
+    };
+
+    const drawFooter = (pageNum: number, pageCount: number) => {
+      doc.setTextColor(180, 180, 180);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.text(
+        "RITEL SOCIETY • Premium Trading Community",
+        margin,
+        pageHeight - 14,
+      );
+      doc.text(
+        `Page ${pageNum} of ${pageCount}`,
+        pageWidth - margin,
+        pageHeight - 14,
+        { align: "right" },
+      );
+    };
+
+    // Menggambar stats global di halaman 1.
+    // Return nilai Y setelah konten selesai digambar.
+    const drawMainStats = (startY = 45): number => {
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(12);
+      doc.text(`Total Signals : ${totalSignals}`, margin, startY);
+      doc.text(`Done          : ${totalDone}`, margin, startY + 10);
+      doc.text(`Running       : ${totalRunning}`, margin, startY + 20);
+      doc.text(`Avg Profit    : ${avgProfit}%`, margin, startY + 30);
+      doc.text(`Winrate       : ${winrate}%`, margin, startY + 40);
+      // Return Y setelah blok stats + sedikit padding
+      return startY + 56;
+    };
+
+    // Menggambar judul section + stats per-section.
+    // Return nilai Y setelah konten selesai digambar.
+    const drawSectionSummary = (
+      title: string,
+      signals: any[],
+      startY: number,
+    ): number => {
+      const doneCount = signals.filter((s) => s.status === "DONE").length;
+      const runningCount = signals.filter((s) => s.status !== "DONE").length;
+
+      doc.setTextColor(255, 215, 0);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(16);
+      doc.text(title, margin, startY);
 
       doc.setTextColor(220, 220, 220);
-
+      doc.setFont("helvetica", "normal");
       doc.setFontSize(11);
+      doc.text(`Signals : ${signals.length}`, margin, startY + 10);
+      doc.text(`Done    : ${doneCount}`, margin, startY + 18);
+      doc.text(`Running : ${runningCount}`, margin, startY + 26);
 
-      doc.text(`Signal : ${groupedSignals["SWING"].length}`, 14, currentY);
+      // Return Y setelah blok section summary
+      return startY + 42;
+    };
 
-      currentY += 8;
+    const formatTimeline = (signal: any) =>
+      [
+        signal.entry_1
+          ? `E1 ${signal.entry_1} (${formatDate(signal.entry_1_date)})`
+          : null,
+        signal.entry_2 && Number(signal.entry_2) > 0
+          ? `E2 ${signal.entry_2} (${formatDate(signal.entry_2_date)})`
+          : null,
+        signal.entry_3 && Number(signal.entry_3) > 0
+          ? `E3 ${signal.entry_3} (${formatDate(signal.entry_3_date)})`
+          : null,
+        signal.done_date ? `DONE (${formatDate(signal.done_date)})` : null,
+      ]
+        .filter(Boolean)
+        .join("\n");
 
-      doc.text(
-        `Done : ${
-          groupedSignals["SWING"].filter((s) => s.status === "DONE").length
-        }`,
-        14,
-        currentY,
-      );
+    const buildSignalRows = (signals: any[]) =>
+      signals.map((signal) => [
+        formatDate(signal.tanggal_signal),
+        signal.emiten,
+        signal.trading_type,
+        signal.avg || "-",
+        formatTimeline(signal),
+        `${signal.tp_1 || "-"} | ${signal.tp_2 || "-"} | ${signal.tp_3 || "-"}`,
+        `${signal.profit_percentage || 0}%`,
+        signal.status,
+      ]);
 
-      currentY += 8;
-
-      doc.text(
-        `Running : ${
-          groupedSignals["SWING"].filter((s) => s.status !== "DONE").length
-        }`,
-        14,
-        currentY,
-      );
-
-      currentY += 15;
+    // ===== createTable() =====
+    // - startY: posisi Y di mana tabel mulai digambar (sudah memperhitungkan teks di atas).
+    // - willDrawPage hanya dipanggil saat page break terjadi (halaman ke-2, ke-3, dst).
+    //   Untuk halaman pertama tabel, flag isFirstPageOfTable = true sehingga kita SKIP
+    //   fillPageBackground agar tidak menimpa teks summary yang sudah digambar sebelumnya.
+    // - Halaman baru akibat page break: gambar ulang background + header.
+    const createTable = (signals: any[], startY: number) => {
+      let isFirstPageOfTable = true;
 
       autoTable(doc, {
-        startY: currentY,
-
+        startY,
+        rowPageBreak: "avoid",
+        margin: {
+          left: margin,
+          right: margin,
+          bottom: 28,
+        },
         head: [
           [
             "Date",
@@ -673,52 +282,85 @@ export default function HistoryPage() {
             "Status",
           ],
         ],
-
-        body: groupedSignals["SWING"]
-          .sort((a, b) => {
-            if (a.status === "DONE" && b.status !== "DONE") return -1;
-            if (a.status !== "DONE" && b.status === "DONE") return 1;
-
-            return a.emiten.localeCompare(b.emiten);
-          })
-          .map((signal) => [
-            formatDate(signal.tanggal_signal),
-            signal.emiten,
-            signal.trading_type,
-            signal.avg || "-",
-            "-",
-            `${signal.tp_1 || "-"} | ${signal.tp_2 || "-"} | ${signal.tp_3 || "-"}`,
-            `${signal.profit_percentage || 0}%`,
-            signal.status,
-          ]),
+        body: buildSignalRows(signals),
         styles: {
-          fillColor: [15, 15, 15],
+          fillColor: [25, 25, 25],
           textColor: [255, 255, 255],
+          font: "helvetica",
+          fontSize: 9,
+          cellPadding: 4,
         },
-
         headStyles: {
           fillColor: [255, 215, 0],
           textColor: [0, 0, 0],
+          fontStyle: "bold",
         },
-
         alternateRowStyles: {
-          fillColor: [25, 25, 25],
+          fillColor: [35, 35, 35],
+        },
+        tableLineColor: [80, 80, 80],
+        tableLineWidth: 0.3,
+        willDrawPage: () => {
+          if (isFirstPageOfTable) {
+            // Halaman pertama tabel — teks summary sudah ada, jangan timpa.
+            isFirstPageOfTable = false;
+          } else {
+            // Page break ke halaman baru — gambar background + header fresh.
+            fillPageBackground();
+            drawPageHeader();
+          }
         },
       });
+    };
+
+    // ===== renderSectionNewPage() =====
+    // Setiap section (selain HAKA PREOPEN) dimulai dari halaman baru.
+    // Urutan: addPage → fillPageBackground → drawPageHeader → drawSectionSummary → createTable.
+    // startY untuk createTable diambil dari return value drawSectionSummary.
+    const renderSectionNewPage = (title: string, signals: any[]) => {
+      if (!signals || signals.length === 0) return;
+
+      doc.addPage();
+      fillPageBackground();
+      drawPageHeader();
+
+      // drawSectionSummary menggambar judul + stats, return Y setelah selesai
+      const summaryEndY = drawSectionSummary(title, signals, 46);
+
+      // Tabel dimulai 8pt di bawah akhir section summary
+      createTable(signals, summaryEndY + 8);
+    };
+
+    // ===== START PDF GENERATION =====
+
+    // PAGE 1: Background → Header → Stats Global → HAKA PREOPEN
+    fillPageBackground();
+    drawPageHeader();
+
+    // drawMainStats() return Y setelah blok stats selesai
+    const statsEndY = drawMainStats(45);
+
+    if (groupedSignals["HAKA PREOPEN"]?.length > 0) {
+      // drawSectionSummary() return Y setelah blok section summary selesai
+      const hakaEndY = drawSectionSummary(
+        "HAKA PREOPEN",
+        groupedSignals["HAKA PREOPEN"],
+        statsEndY,
+      );
+      // Tabel HAKA PREOPEN dimulai tepat di bawah section summary
+      createTable(groupedSignals["HAKA PREOPEN"], hakaEndY + 8);
     }
 
-    const pageCount = doc.getNumberOfPages();
+    // Halaman baru untuk setiap section berikutnya
+    renderSectionNewPage("SNIPERAN", groupedSignals["SNIPERAN"]);
+    renderSectionNewPage("BSJP", groupedSignals["BSJP"]);
+    renderSectionNewPage("SWING", groupedSignals["SWING"]);
 
-    for (let i = 1; i <= pageCount; i++) {
+    // ===== ADD FOOTERS KE SEMUA PAGES =====
+    const finalPageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= finalPageCount; i += 1) {
       doc.setPage(i);
-
-      doc.setTextColor(120, 120, 120);
-
-      doc.setFontSize(9);
-
-      doc.text("RITEL SOCIETY • Premium Trading Community", 14, 290);
-
-      doc.text(`Page ${i} of ${pageCount}`, 180, 290);
+      drawFooter(i, finalPageCount);
     }
 
     doc.save("rise-history.pdf");
@@ -730,7 +372,6 @@ export default function HistoryPage() {
 
   async function downloadImage() {
     const element = document.getElementById("history-share");
-
     if (!element) return;
 
     const originalClass = element.className;
@@ -743,16 +384,13 @@ export default function HistoryPage() {
         cacheBust: true,
         backgroundColor: "#000000",
         pixelRatio: 3,
-
         canvasWidth: element.scrollWidth,
         canvasHeight: element.scrollHeight,
       });
 
       const link = document.createElement("a");
-
       link.download = "rise-history.png";
       link.href = dataUrl;
-
       link.click();
     } catch (error) {
       console.error("Download image error:", error);
@@ -773,7 +411,6 @@ export default function HistoryPage() {
             <h1 className="text-4xl md:text-6xl font-black tracking-tight text-amber-300 leading-none">
               HISTORY RECAP
             </h1>
-
             <p className="text-zinc-400 mt-3 text-lg">
               Rekapan seluruh history signal
             </p>
@@ -784,19 +421,18 @@ export default function HistoryPage() {
             <button
               onClick={exportPDF}
               className="
-bg-amber-300
-hover:bg-amber-200
-transition-all
-duration-200
-
-text-black
-font-black
-px-6
-py-3
-rounded-2xl
-shadow-lg
-shadow-amber-300/10
-"
+                bg-amber-300
+                hover:bg-amber-200
+                transition-all
+                duration-200
+                text-black
+                font-black
+                px-6
+                py-3
+                rounded-2xl
+                shadow-lg
+                shadow-amber-300/10
+              "
             >
               Export PDF
             </button>
@@ -804,18 +440,18 @@ shadow-amber-300/10
             <button
               onClick={downloadImage}
               className="
-bg-zinc-800
-hover:bg-zinc-700
-border
-border-zinc-800
-transition-all
-duration-200
-text-white
-font-black
-px-6
-py-3
-rounded-2xl
-"
+                bg-zinc-800
+                hover:bg-zinc-700
+                border
+                border-zinc-800
+                transition-all
+                duration-200
+                text-white
+                font-black
+                px-6
+                py-3
+                rounded-2xl
+              "
             >
               Download Image
             </button>
@@ -839,7 +475,6 @@ rounded-2xl
           </div>
 
           {/* FILTER PREMIUM */}
-
           <div className="space-y-5 mb-10">
             {/* SEARCH */}
             <input
@@ -848,21 +483,21 @@ rounded-2xl
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="
-      w-full
-      bg-gradient-to-b
-      from-zinc-950
-      to-black
-      border
-      border-zinc-800
-      rounded-3xl
-      px-6
-      py-5
-      outline-none
-      text-zinc-100
-      focus:border-amber-300
-      transition-all
-      text-lg
-    "
+                w-full
+                bg-gradient-to-b
+                from-zinc-950
+                to-black
+                border
+                border-zinc-800
+                rounded-3xl
+                px-6
+                py-5
+                outline-none
+                text-zinc-100
+                focus:border-amber-300
+                transition-all
+                text-lg
+              "
             />
 
             {/* MAIN FILTER */}
@@ -871,17 +506,17 @@ rounded-2xl
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="
-        appearance-none
-        bg-zinc-950
-        border
-        border-zinc-800
-        rounded-2xl
-        px-5
-        py-4
-        text-white
-        outline-none
-        focus:border-amber-300
-      "
+                  appearance-none
+                  bg-zinc-950
+                  border
+                  border-zinc-800
+                  rounded-2xl
+                  px-5
+                  py-4
+                  text-white
+                  outline-none
+                  focus:border-amber-300
+                "
               >
                 <option value="ALL">ALL STATUS</option>
                 <option value="RUNNING">RUNNING</option>
@@ -892,17 +527,17 @@ rounded-2xl
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
                 className="
-        appearance-none
-        bg-zinc-950
-        border
-        border-zinc-800
-        rounded-2xl
-        px-5
-        py-4
-        text-white
-        outline-none
-        focus:border-amber-300
-      "
+                  appearance-none
+                  bg-zinc-950
+                  border
+                  border-zinc-800
+                  rounded-2xl
+                  px-5
+                  py-4
+                  text-white
+                  outline-none
+                  focus:border-amber-300
+                "
               >
                 <option value="ALL">ALL TYPE</option>
                 <option value="HAKA PREOPEN">HAKA PREOPEN</option>
@@ -917,7 +552,6 @@ rounded-2xl
               <p className="text-zinc-500 text-sm mb-3 uppercase tracking-[0.2em]">
                 Filter Date
               </p>
-
               <DatePicker
                 selected={specificDateFilter}
                 onChange={(date: Date | null) => setSpecificDateFilter(date)}
@@ -925,69 +559,65 @@ rounded-2xl
                 placeholderText="Select Date"
                 calendarClassName="premium-calendar"
                 className="
-    bg-zinc-950
-    border
-    border-zinc-800
-    rounded-2xl
-    px-5
-    py-4
-    text-white
-    outline-none
-    focus:border-amber-300
-    w-full
-    md:w-[320px]
-  "
+                  bg-zinc-950
+                  border
+                  border-zinc-800
+                  rounded-2xl
+                  px-5
+                  py-4
+                  text-white
+                  outline-none
+                  focus:border-amber-300
+                  w-full
+                  md:w-[320px]
+                "
               />
             </div>
           </div>
+
           {/* STATS */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-5 mb-10">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 ">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5">
               <p className="text-zinc-400">Total Signals</p>
-
               <h2 className="text-4xl font-black tracking-tight text-amber-300 mt-3">
                 {totalSignals}
               </h2>
             </div>
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 ">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5">
               <p className="text-zinc-400">Running</p>
-
               <h2 className="text-4xl font-black tracking-tight text-rose-400 mt-3">
                 {totalRunning}
               </h2>
             </div>
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 ">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5">
               <p className="text-zinc-400">Done</p>
-
               <h2 className="text-4xl font-black tracking-tight text-emerald-400 mt-3">
                 {totalDone}
               </h2>
             </div>
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 ">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5">
               <p className="text-zinc-400">Avg Profit</p>
-
               <h2 className="text-4xl font-black tracking-tight text-amber-200 mt-3">
                 {avgProfit}%
               </h2>
             </div>
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 ">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5">
               <p className="text-zinc-400">Winrate</p>
-
               <h2 className="text-4xl font-black tracking-tight text-emerald-300 mt-3">
                 {winrate}%
               </h2>
             </div>
           </div>
 
+          {/* TABLE - DESKTOP */}
           <div
             id="history-image"
             className="hidden md:block bg-black p-8 rounded-3xl overflow-visible"
           >
-            {/* TABLE */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden">
               <table className="w-full min-w-[1100px]">
                 <thead className="bg-gradient-to-r from-zinc-900 to-black border-b border-zinc-800">
@@ -995,31 +625,24 @@ rounded-2xl
                     <th className="p-4 text-left text-zinc-400 font-semibold tracking-wide">
                       Date
                     </th>
-
                     <th className="p-4 text-left text-zinc-400 font-semibold tracking-wide">
                       Emiten
                     </th>
-
                     <th className="p-4 text-left text-zinc-400 font-semibold tracking-wide">
                       Type
                     </th>
-
                     <th className="p-4 text-left text-zinc-400 font-semibold tracking-wide">
                       AVG
                     </th>
-
                     <th className="p-4 text-left text-zinc-400 font-semibold tracking-wide">
                       Timeline
                     </th>
-
                     <th className="p-4 text-left text-zinc-400 font-semibold tracking-wide">
                       TP1 / TP2 / TP3
                     </th>
-
                     <th className="p-4 text-left text-zinc-400 font-semibold tracking-wide">
                       Profit
                     </th>
-
                     <th className="p-4 text-left text-zinc-400 font-semibold tracking-wide">
                       Status
                     </th>
@@ -1027,9 +650,8 @@ rounded-2xl
                 </thead>
 
                 <tbody>
-                  {filteredSignals.map((signal) => {
+                  {sortedSignals.map((signal) => {
                     const journey = getSignalJourney(signal.id);
-
                     return (
                       <tr
                         key={signal.id}
@@ -1038,15 +660,11 @@ rounded-2xl
                         <td className="px-4 py-5">
                           {formatDate(signal.tanggal_signal)}
                         </td>
-
                         <td className="p-4 font-black tracking-tight text-amber-300">
                           {signal.emiten}
                         </td>
-
                         <td className="px-4 py-5">{signal.trading_type}</td>
-
                         <td className="px-4 py-5">{signal.avg || "-"}</td>
-
                         <td className="px-4 py-5">
                           <div className="space-y-2 text-sm">
                             {journey.map((item) => (
@@ -1081,9 +699,7 @@ rounded-2xl
                                             ? "DONE"
                                             : item.event_type}
                                 </p>
-
                                 <p className="text-white">{item.new_value}</p>
-
                                 <p className="text-zinc-500 text-xs">
                                   {formatDate(item.created_at)}
                                 </p>
@@ -1091,16 +707,13 @@ rounded-2xl
                             ))}
                           </div>
                         </td>
-
                         <td className="px-4 py-5">
                           {signal.tp_1 || "-"} | {signal.tp_2 || "-"} |{" "}
                           {signal.tp_3 || "-"}
                         </td>
-
                         <td className="p-4 text-emerald-400 font-bold">
                           {signal.profit_percentage || 0}%
                         </td>
-
                         <td className="px-4 py-5">
                           <span
                             className={
@@ -1120,6 +733,7 @@ rounded-2xl
             </div>
           </div>
 
+          {/* SHARE IMAGE TEMPLATE */}
           <div
             id="history-share"
             className="hidden bg-black text-white p-8 w-[1200px] relative overflow-hidden"
@@ -1128,15 +742,15 @@ rounded-2xl
               src="/logo-rise-transparent.png"
               alt="RISE"
               className="
-    absolute
-    top-1/2
-    left-1/2
-    -translate-x-1/2
-    -translate-y-1/2
-    w-[950px]
-    opacity-[0.08]
-    pointer-events-none
-  "
+                absolute
+                top-1/2
+                left-1/2
+                -translate-x-1/2
+                -translate-y-1/2
+                w-[950px]
+                opacity-[0.08]
+                pointer-events-none
+              "
             />
             <div className="max-w-4xl mx-auto">
               <div className="flex items-center gap-5 mb-8">
@@ -1145,12 +759,10 @@ rounded-2xl
                   alt="RISE"
                   className="w-20 h-20 object-contain"
                 />
-
                 <div>
                   <h1 className="text-5xl font-black text-amber-300">
                     RISE HISTORY RECAP
                   </h1>
-
                   <p className="text-zinc-500 text-lg">
                     Ritel Society Premium Trading Community
                   </p>
@@ -1162,12 +774,10 @@ rounded-2xl
                   <span className="text-zinc-500 text-sm">STATUS</span>
                   <p className="font-bold">{statusFilter}</p>
                 </div>
-
                 <div className="bg-zinc-900 border border-zinc-800 px-4 py-2 rounded-xl">
                   <span className="text-zinc-500 text-sm">TYPE</span>
                   <p className="font-bold">{typeFilter}</p>
                 </div>
-
                 <div className="bg-zinc-900 border border-zinc-800 px-4 py-2 rounded-xl">
                   <span className="text-zinc-500 text-sm">DATE</span>
                   <p className="font-bold">{dateFilter}</p>
@@ -1179,21 +789,18 @@ rounded-2xl
                   <p>Total Signal</p>
                   <h2 className="text-3xl font-black">{totalSignals}</h2>
                 </div>
-
                 <div className="bg-zinc-900 p-4 rounded-2xl">
                   <p>Done</p>
                   <h2 className="text-3xl font-black text-emerald-400">
                     {totalDone}
                   </h2>
                 </div>
-
                 <div className="bg-zinc-900 p-4 rounded-2xl">
                   <p>Running</p>
                   <h2 className="text-3xl font-black text-rose-400">
                     {totalRunning}
                   </h2>
                 </div>
-
                 <div className="bg-zinc-900 p-4 rounded-2xl">
                   <p>Winrate</p>
                   <h2 className="text-3xl font-black text-amber-300">
@@ -1212,13 +819,11 @@ rounded-2xl
                 {Object.entries(groupedSignals).map(
                   ([groupName, groupSignals]) => {
                     if (groupSignals.length === 0) return null;
-
                     return (
                       <div key={groupName}>
                         <h2 className="text-3xl font-black text-amber-300 mb-4">
                           {groupName} ({groupSignals.length})
                         </h2>
-
                         <p className="text-zinc-400 mb-4">
                           Done:{" "}
                           {
@@ -1232,7 +837,6 @@ rounded-2xl
                               .length
                           }
                         </p>
-
                         <p className="text-emerald-300 mb-4 font-semibold">
                           Avg Profit:{" "}
                           {(
@@ -1244,7 +848,6 @@ rounded-2xl
                           ).toFixed(2)}
                           %
                         </p>
-
                         <div className="space-y-3">
                           {groupSignals
                             .sort((a, b) => {
@@ -1252,7 +855,6 @@ rounded-2xl
                                 return -1;
                               if (a.status !== "DONE" && b.status === "DONE")
                                 return 1;
-
                               return a.emiten.localeCompare(b.emiten);
                             })
                             .map((signal) => (
@@ -1265,12 +867,10 @@ rounded-2xl
                                     <h3 className="text-2xl font-black text-amber-300">
                                       {signal.emiten}
                                     </h3>
-
                                     <p className="text-zinc-400">
                                       {signal.trading_type}
                                     </p>
                                   </div>
-
                                   <div className="text-right">
                                     <p
                                       className={
@@ -1281,7 +881,6 @@ rounded-2xl
                                     >
                                       {signal.status}
                                     </p>
-
                                     <p className="text-xl font-black">
                                       {signal.profit_percentage || 0}%
                                     </p>
@@ -1300,7 +899,6 @@ rounded-2xl
                 <p className="text-zinc-500 text-sm">
                   Generated by RISE Dashboard
                 </p>
-
                 <p className="text-amber-300 font-bold mt-2">
                   RITEL SOCIETY • Premium Trading Community
                 </p>
@@ -1310,10 +908,10 @@ rounded-2xl
 
           {/* MOBILE CARD */}
           <div className="block md:hidden space-y-3">
-            {filteredSignals.map((signal) => (
+            {sortedSignals.map((signal) => (
               <div
                 key={signal.id}
-                className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 "
+                className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5"
               >
                 {/* TOP */}
                 <div className="flex items-start justify-between mb-4">
@@ -1321,7 +919,6 @@ rounded-2xl
                     <h2 className="text-2xl md:text-3xl font-black tracking-tight text-amber-300">
                       {signal.emiten}
                     </h2>
-
                     <p className="text-zinc-400 text-sm mt-1">
                       {signal.trading_type}
                     </p>
@@ -1340,7 +937,6 @@ rounded-2xl
                 {/* DATE */}
                 <div className="mb-4">
                   <p className="text-zinc-500 text-sm">Tanggal</p>
-
                   <p className="font-semibold">
                     {formatDate(signal.tanggal_signal)}
                   </p>
@@ -1353,9 +949,7 @@ rounded-2xl
                       <p className="text-amber-300 font-bold text-sm">
                         ENTRY 1
                       </p>
-
                       <p className="text-xl font-bold">{signal.entry_1}</p>
-
                       <p className="text-zinc-500 text-xs mt-1">
                         {signal.entry_1_date
                           ? formatDate(signal.entry_1_date)
@@ -1369,9 +963,7 @@ rounded-2xl
                       <p className="text-emerald-300 font-bold text-sm">
                         ENTRY 2
                       </p>
-
                       <p className="text-xl font-bold">{signal.entry_2}</p>
-
                       <p className="text-zinc-500 text-xs mt-1">
                         {signal.entry_2_date
                           ? formatDate(signal.entry_2_date)
@@ -1383,9 +975,7 @@ rounded-2xl
                   {Number(signal.entry_3) > 0 && (
                     <div className="bg-zinc-800 rounded-xl p-2.5">
                       <p className="text-rose-300 font-bold text-sm">ENTRY 3</p>
-
                       <p className="text-xl font-bold">{signal.entry_3}</p>
-
                       <p className="text-zinc-500 text-xs mt-1">
                         {signal.entry_3_date
                           ? formatDate(signal.entry_3_date)
@@ -1394,11 +984,9 @@ rounded-2xl
                     </div>
                   )}
 
-                  {/* DONE */}
                   {signal.done_date && (
                     <div className="bg-zinc-800 border border-zinc-700 rounded-xl p-2.5">
                       <p className="text-emerald-400 font-bold text-sm">DONE</p>
-
                       <p className="text-zinc-500 text-xs mt-1">
                         {signal.done_date ? formatDate(signal.done_date) : "-"}
                       </p>
@@ -1410,22 +998,17 @@ rounded-2xl
                 <div className="grid grid-cols-3 gap-3">
                   <div className="bg-zinc-800 rounded-xl p-2.5">
                     <p className="text-zinc-500 text-xs">AVG</p>
-
                     <p className="font-bold text-lg">{signal.avg || "-"}</p>
                   </div>
-
                   <div className="bg-zinc-800 rounded-xl p-2.5">
                     <p className="text-zinc-500 text-xs">TP</p>
-
                     <p className="font-bold text-lg">
                       {signal.tp_1 || "-"} | {signal.tp_2 || "-"} |{" "}
                       {signal.tp_3 || "-"}
                     </p>
                   </div>
-
                   <div className="bg-zinc-800 rounded-xl p-2.5">
                     <p className="text-zinc-500 text-xs">PROFIT</p>
-
                     <p className="font-bold text-lg text-emerald-400">
                       {signal.profit_percentage || 0}%
                     </p>

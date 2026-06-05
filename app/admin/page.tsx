@@ -1,7 +1,7 @@
 "use client";
 
 import Navbar from "@/components/Navbar";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 import toast from "react-hot-toast";
@@ -83,7 +83,60 @@ export default function AdminPage() {
 
   const [sendDiscord, setSendDiscord] = useState(true);
 
-  const [mode, setMode] = useState<"SIGNAL" | "WATCHLIST">("SIGNAL");
+  const [mode, setMode] = useState<"SIGNAL" | "WATCHLIST" | "MEMBER">("SIGNAL");
+
+  const [memberName, setMemberName] = useState("");
+  const [discordId, setDiscordId] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [memberPackage, setMemberPackage] = useState("Monthly");
+
+  const [memberPassword, setMemberPassword] = useState("");
+
+  useEffect(() => {
+    const today = new Date();
+
+    const start = today.toISOString().split("T")[0];
+
+    let end = "";
+
+    if (memberPackage === "Monthly") {
+      const d = new Date(today);
+      d.setDate(d.getDate() + 30);
+      end = d.toISOString().split("T")[0];
+    }
+
+    if (memberPackage === "Quarterly") {
+      const d = new Date(today);
+      d.setDate(d.getDate() + 90);
+      end = d.toISOString().split("T")[0];
+    }
+
+    if (memberPackage === "Semi Annual") {
+      const d = new Date(today);
+      d.setDate(d.getDate() + 180);
+      end = d.toISOString().split("T")[0];
+    }
+
+    if (memberPackage === "Annual") {
+      const d = new Date(today);
+      d.setDate(d.getDate() + 365);
+      end = d.toISOString().split("T")[0];
+    }
+
+    if (memberPackage === "Lifetime") {
+      end = "2099-12-31";
+    }
+
+    setStartDate(start);
+    setEndDate(end);
+  }, [memberPackage]);
+
+  const [members, setMembers] = useState<any[]>([]);
+
+  const [memberFilter, setMemberFilter] = useState("ALL");
+
+  const [memberSearch, setMemberSearch] = useState("");
 
   const [watchlistTitle, setWatchlistTitle] = useState("");
 
@@ -92,6 +145,10 @@ export default function AdminPage() {
   const [watchlistNotes, setWatchlistNotes] = useState("");
 
   const [editingId, setEditingId] = useState<number | null>(null);
+
+  const [editingMemberId, setEditingMemberId] = useState<number | null>(null);
+
+  const memberFormRef = useRef<HTMLDivElement>(null);
 
   const currentTime = new Date().toLocaleTimeString("id-ID", {
     hour: "2-digit",
@@ -186,6 +243,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     getSignals();
+    getMembers();
 
     const channel = supabase
       .channel("admin-signals")
@@ -837,9 +895,126 @@ ${watchlistNotes || "-"}
     }
   }
 
+  async function getMembers() {
+    const { data, error } = await supabase
+      .from("members")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.log(error);
+      return;
+    }
+
+    setMembers(data || []);
+  }
+
+  async function saveMember() {
+    let error = null;
+
+    if (editingMemberId) {
+      const response = await supabase
+        .from("members")
+        .update({
+          nama: memberName,
+          discord_id: discordId,
+          password: memberPassword,
+          role: "member",
+          paket: memberPackage,
+          start_date: startDate,
+          end_date: endDate,
+        })
+        .eq("id", editingMemberId);
+
+      error = response.error;
+    } else {
+      const response = await supabase.from("members").insert([
+        {
+          nama: memberName,
+          discord_id: discordId,
+          password: memberPassword,
+          role: "member",
+          paket: memberPackage,
+          start_date: startDate,
+          end_date: endDate,
+        },
+      ]);
+
+      error = response.error;
+    }
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    toast.success(
+      editingMemberId
+        ? "Member berhasil diupdate!"
+        : "Member berhasil ditambahkan!",
+    );
+
+    getMembers();
+
+    setMemberName("");
+    setDiscordId("");
+    setMemberPackage("Monthly");
+    setMemberPassword("");
+
+    setEditingMemberId(null);
+  }
+
   // =========================
   // DELETE SIGNAL
   // =========================
+
+  async function deleteMember(id: number) {
+    const confirmDelete = confirm("Yakin ingin menghapus member ini?");
+
+    if (!confirmDelete) return;
+
+    const { error } = await supabase.from("members").delete().eq("id", id);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    toast.success("Member berhasil dihapus!");
+
+    getMembers();
+  }
+
+  async function extendMember(id: number, months: number) {
+    const member = members.find((m) => m.id === id);
+
+    if (!member) return;
+
+    const today = new Date();
+
+    const currentEnd =
+      new Date(member.end_date) > today ? new Date(member.end_date) : today;
+
+    currentEnd.setMonth(currentEnd.getMonth() + months);
+
+    const newEndDate = currentEnd.toISOString().split("T")[0];
+
+    const { error } = await supabase
+      .from("members")
+      .update({
+        end_date: newEndDate,
+      })
+      .eq("id", id);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    toast.success(`Membership diperpanjang ${months} bulan`);
+
+    getMembers();
+  }
 
   async function deleteSignal(id: number) {
     const confirmDelete = confirm("Yakin ingin menghapus signal ini?");
@@ -865,6 +1040,50 @@ ${watchlistNotes || "-"}
   // =========================
   // FILTERED SIGNALS
   // =========================
+
+  const totalMembers = members.length;
+
+  const activeMembers = members.filter(
+    (member) => new Date(member.end_date) > new Date(),
+  ).length;
+
+  const expiredMembers = members.filter(
+    (member) => new Date(member.end_date) <= new Date(),
+  ).length;
+
+  const warningMembers = members.filter((member) => {
+    const daysLeft = Math.ceil(
+      (new Date(member.end_date).getTime() - new Date().getTime()) /
+        (1000 * 60 * 60 * 24),
+    );
+
+    return daysLeft > 0 && daysLeft <= 7;
+  }).length;
+
+  const filteredMembers = members.filter((member) => {
+    const daysLeft = Math.ceil(
+      (new Date(member.end_date).getTime() - new Date().getTime()) /
+        (1000 * 60 * 60 * 24),
+    );
+
+    const cocokSearch =
+      member.nama?.toLowerCase().includes(memberSearch.toLowerCase()) ||
+      member.discord_id?.toLowerCase().includes(memberSearch.toLowerCase());
+
+    if (memberFilter === "ACTIVE") {
+      return daysLeft > 7 && cocokSearch;
+    }
+
+    if (memberFilter === "WARNING") {
+      return daysLeft > 0 && daysLeft <= 7 && cocokSearch;
+    }
+
+    if (memberFilter === "EXPIRED") {
+      return daysLeft <= 0 && cocokSearch;
+    }
+
+    return cocokSearch;
+  });
 
   const filteredSignals = signals.filter((signal) => {
     const cocokSearch = signal.emiten
@@ -964,6 +1183,17 @@ ${watchlistNotes || "-"}
             }`}
           >
             👀 WATCHLIST
+          </button>
+
+          <button
+            onClick={() => setMode("MEMBER")}
+            className={`px-6 py-3 rounded-2xl font-bold transition-all ${
+              mode === "MEMBER"
+                ? "bg-emerald-400 text-black"
+                : "bg-zinc-900 text-zinc-400 border border-white/5"
+            }`}
+          >
+            👥 MEMBER
           </button>
         </div>
 
@@ -1316,33 +1546,434 @@ ${watchlistNotes || "-"}
           </div>
         )}
 
+        {mode === "MEMBER" && (
+          <>
+            <div
+              ref={memberFormRef}
+              className="bg-gradient-to-b from-zinc-900 to-black border border-white/5 rounded-3xl p-8"
+            >
+              <h2 className="text-3xl font-black text-emerald-400 mb-6">
+                MEMBER MANAGEMENT
+              </h2>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <input
+                  type="text"
+                  placeholder="Nama Member"
+                  value={memberName}
+                  onChange={(e) => setMemberName(e.target.value)}
+                  className="bg-black border border-white/10 rounded-xl px-4 py-3 text-white"
+                />
+
+                <input
+                  type="text"
+                  placeholder="Discord ID / Username"
+                  value={discordId}
+                  onChange={(e) => setDiscordId(e.target.value)}
+                  className="bg-black border border-white/10 rounded-xl px-4 py-3 text-white"
+                />
+
+                <input
+                  type="password"
+                  placeholder="Password Member"
+                  value={memberPassword}
+                  onChange={(e) => setMemberPassword(e.target.value)}
+                  className="
+w-full
+bg-black
+border
+border-white/10
+rounded-2xl
+px-4
+py-4
+text-white
+placeholder:text-zinc-500
+"
+                />
+
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="bg-black border border-white/10 rounded-xl px-4 py-3 text-white"
+                />
+
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="bg-black border border-white/10 rounded-xl px-4 py-3 text-white"
+                />
+                <select
+                  value={memberPackage}
+                  onChange={(e) => setMemberPackage(e.target.value)}
+                  className="bg-black border border-white/10 rounded-xl px-4 py-3 text-white"
+                >
+                  <option value="Monthly">Monthly</option>
+                  <option value="Quarterly">Quarterly</option>
+                  <option value="Semi Annual">6 Months</option>
+                  <option value="Annual">12 Months</option>
+                  <option value="Lifetime">Lifetime</option>
+                </select>
+                <div className="flex gap-3 mt-6">
+                  {editingMemberId && (
+                    <button
+                      onClick={() => {
+                        setEditingMemberId(null);
+
+                        setMemberName("");
+                        setDiscordId("");
+
+                        setMemberPackage("Monthly");
+
+                        setStartDate("");
+                        setEndDate("");
+                      }}
+                      className="
+      bg-zinc-800
+      hover:bg-zinc-700
+      border
+      border-white/10
+      text-white
+      font-bold
+      px-6
+      py-3
+      rounded-xl
+    "
+                    >
+                      CANCEL EDIT
+                    </button>
+                  )}
+                  <button
+                    onClick={saveMember}
+                    className="
+      bg-emerald-500
+      hover:bg-emerald-400
+      text-black
+      font-bold
+      px-6
+      py-3
+      rounded-xl
+    "
+                  >
+                    {editingMemberId ? "✏️ UPDATE MEMBER" : "👥 SIMPAN MEMBER"}
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8 mb-6">
+              <div className="bg-zinc-900 border border-white/10 rounded-2xl p-4">
+                <p className="text-zinc-500 text-sm">Total Member</p>
+                <h3 className="text-2xl font-black text-white">
+                  {totalMembers}
+                </h3>
+              </div>
+
+              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4">
+                <p className="text-emerald-300 text-sm">Active</p>
+                <h3 className="text-2xl font-black text-emerald-400">
+                  {activeMembers}
+                </h3>
+              </div>
+
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4">
+                <p className="text-amber-300 text-sm">Hampir Expired</p>
+                <h3 className="text-2xl font-black text-amber-400">
+                  {warningMembers}
+                </h3>
+              </div>
+
+              <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4">
+                <p className="text-rose-300 text-sm">Expired</p>
+                <h3 className="text-2xl font-black text-rose-400">
+                  {expiredMembers}
+                </h3>
+              </div>
+            </div>
+
+            <div className="mt-8">
+              <div className="flex flex-wrap gap-3 mb-4">
+                <button
+                  onClick={() => setMemberFilter("ALL")}
+                  className={`px-4 py-2 rounded-xl font-bold ${
+                    memberFilter === "ALL"
+                      ? "bg-white text-black"
+                      : "bg-zinc-900 text-zinc-400 border border-white/10"
+                  }`}
+                >
+                  ALL ({totalMembers})
+                </button>
+
+                <button
+                  onClick={() => setMemberFilter("ACTIVE")}
+                  className={`px-4 py-2 rounded-xl font-bold ${
+                    memberFilter === "ACTIVE"
+                      ? "bg-emerald-400 text-black"
+                      : "bg-zinc-900 text-zinc-400 border border-white/10"
+                  }`}
+                >
+                  ACTIVE ({activeMembers})
+                </button>
+
+                <button
+                  onClick={() => setMemberFilter("WARNING")}
+                  className={`px-4 py-2 rounded-xl font-bold ${
+                    memberFilter === "WARNING"
+                      ? "bg-amber-400 text-black"
+                      : "bg-zinc-900 text-zinc-400 border border-white/10"
+                  }`}
+                >
+                  WARNING ({warningMembers})
+                </button>
+
+                <button
+                  onClick={() => setMemberFilter("EXPIRED")}
+                  className={`px-4 py-2 rounded-xl font-bold ${
+                    memberFilter === "EXPIRED"
+                      ? "bg-rose-400 text-black"
+                      : "bg-zinc-900 text-zinc-400 border border-white/10"
+                  }`}
+                >
+                  EXPIRED ({expiredMembers})
+                </button>
+              </div>
+              <h3 className="text-2xl font-black text-amber-300 mb-4">
+                DAFTAR MEMBER
+              </h3>
+
+              <div className="mb-4">
+                <input
+                  type="text"
+                  placeholder="Cari nama atau discord..."
+                  value={memberSearch}
+                  onChange={(e) => setMemberSearch(e.target.value)}
+                  className="
+      w-full
+      bg-black
+      border
+      border-white/10
+      rounded-xl
+      px-4
+      py-3
+      text-white
+    "
+                />
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-white/10">
+                      <th className="text-left p-3">Nama</th>
+                      <th className="text-left p-3">Discord</th>
+                      <th className="text-left p-3">Paket</th>
+                      <th className="text-left p-3">Mulai</th>
+                      <th className="text-left p-3">Berakhir</th>
+                      <th className="text-left p-3">Sisa Hari</th>
+                      <th className="text-left p-3">Status</th>
+                      <th className="text-left p-3">Action</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {filteredMembers.map((member) => (
+                      <tr key={member.id} className="border-b border-white/5">
+                        <td className="p-3">{member.nama}</td>
+
+                        <td className="p-3">{member.discord_id}</td>
+
+                        <td className="p-3">{member.paket}</td>
+
+                        <td className="p-3">{member.start_date}</td>
+
+                        <td className="p-3">{member.end_date}</td>
+                        <td className="p-3">
+                          {(() => {
+                            const daysLeft = Math.ceil(
+                              (new Date(member.end_date).getTime() -
+                                new Date().getTime()) /
+                                (1000 * 60 * 60 * 24),
+                            );
+
+                            return (
+                              <span
+                                className={
+                                  daysLeft <= 0
+                                    ? "text-rose-500 font-bold"
+                                    : daysLeft <= 7
+                                      ? "text-red-400 font-bold"
+                                      : daysLeft <= 30
+                                        ? "text-yellow-400 font-bold"
+                                        : "text-emerald-400 font-bold"
+                                }
+                              >
+                                {daysLeft > 0 ? `${daysLeft} Hari` : "EXPIRED"}
+                              </span>
+                            );
+                          })()}
+                        </td>
+                        <td className="p-3">
+                          {(() => {
+                            const daysLeft = Math.ceil(
+                              (new Date(member.end_date).getTime() -
+                                new Date().getTime()) /
+                                (1000 * 60 * 60 * 24),
+                            );
+
+                            if (daysLeft <= 0) {
+                              return (
+                                <span className="px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 font-bold text-xs">
+                                  🔴 EXPIRED
+                                </span>
+                              );
+                            }
+
+                            if (daysLeft <= 7) {
+                              return (
+                                <span className="px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 font-bold text-xs">
+                                  🟡 WARNING
+                                </span>
+                              );
+                            }
+
+                            return (
+                              <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold text-xs">
+                                🟢 ACTIVE
+                              </span>
+                            );
+                          })()}
+                        </td>
+                        <td className="p-3">
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                setMemberName(member.nama);
+                                setDiscordId(member.discord_id);
+                                setMemberPackage(member.paket);
+                                setStartDate(member.start_date);
+                                setEndDate(member.end_date);
+
+                                setEditingMemberId(member.id);
+
+                                memberFormRef.current?.scrollIntoView({
+                                  behavior: "smooth",
+                                  block: "start",
+                                });
+                              }}
+                              className="bg-amber-300/10 hover:bg-amber-300/20 border border-amber-300/20 text-amber-300 px-4 py-2 rounded-xl font-bold"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => extendMember(member.id, 1)}
+                              className="
+bg-cyan-500/10
+hover:bg-cyan-500/20
+border
+border-cyan-500/20
+text-cyan-300
+px-3
+py-2
+rounded-xl
+font-bold
+"
+                            >
+                              +1B
+                            </button>
+                            <button
+                              onClick={() => extendMember(member.id, 3)}
+                              className="
+bg-indigo-500/10
+hover:bg-indigo-500/20
+border
+border-indigo-500/20
+text-indigo-300
+px-3
+py-2
+rounded-xl
+font-bold
+"
+                            >
+                              +3B
+                            </button>
+                            <button
+                              onClick={() => extendMember(member.id, 6)}
+                              className="
+bg-violet-500/10
+hover:bg-violet-500/20
+border
+border-violet-500/20
+text-violet-300
+px-3
+py-2
+rounded-xl
+font-bold
+"
+                            >
+                              +6B
+                            </button>
+
+                            <button
+                              onClick={() => extendMember(member.id, 12)}
+                              className="
+bg-emerald-500/10
+hover:bg-emerald-500/20
+border
+border-emerald-500/20
+text-emerald-300
+px-3
+py-2
+rounded-xl
+font-bold
+"
+                            >
+                              +12B
+                            </button>
+                            <button
+                              onClick={() => deleteMember(member.id)}
+                              className="bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-300 px-4 py-2 rounded-xl font-bold"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+
         {/* BUTTON */}
-        <div className="mt-8 mb-10 flex flex-col md:flex-row gap-4 max-w-4xl">
-          {editingId && (
-            <button
-              onClick={() => {
-                setEditingId(null);
+        {mode !== "MEMBER" && (
+          <div className="mt-8 mb-10 flex flex-col md:flex-row gap-4 max-w-4xl">
+            {editingId && (
+              <button
+                onClick={() => {
+                  setEditingId(null);
 
-                setEmiten("");
-                setTradingType("");
+                  setEmiten("");
+                  setTradingType("");
 
-                setEntry1("");
-                setEntry2("");
-                setEntry3("");
+                  setEntry1("");
+                  setEntry2("");
+                  setEntry3("");
 
-                setAvg("");
+                  setAvg("");
 
-                setTp1("");
-                setTp2("");
-                setTp3("");
+                  setTp1("");
+                  setTp2("");
+                  setTp3("");
 
-                setStatus("RUNNING");
+                  setStatus("RUNNING");
 
-                setHighPrice("");
+                  setHighPrice("");
 
-                setProfitPercentage("");
-              }}
-              className="
+                  setProfitPercentage("");
+                }}
+                className="
 w-full md:w-40
 bg-zinc-800
 hover:bg-zinc-700
@@ -1356,14 +1987,20 @@ py-4
 rounded-2xl
 text-lg
 "
-            >
-              CANCEL
-            </button>
-          )}
+              >
+                CANCEL
+              </button>
+            )}
 
-          <button
-            onClick={mode === "WATCHLIST" ? sendWatchlist : saveSignal}
-            className="
+            <button
+              onClick={() => {
+                if (mode === "WATCHLIST") {
+                  sendWatchlist();
+                } else {
+                  saveSignal();
+                }
+              }}
+              className="
 w-full
 bg-amber-300
 hover:bg-amber-200
@@ -1378,186 +2015,191 @@ text-lg
 shadow-lg
 shadow-amber-300/10
 "
-          >
-            {loading
-              ? "MENYIMPAN..."
-              : mode === "WATCHLIST"
-                ? "🚀 KIRIM WATCHLIST"
-                : editingId
-                  ? "UPDATE SIGNAL"
-                  : "SIMPAN SIGNAL"}
-          </button>
-        </div>
-        {/* FILTER */}
-        <div className="grid md:grid-cols-3 gap-4 mb-6">
-          <input
-            type="text"
-            placeholder="Search Emiten..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-gradient-to-b from-black to-zinc-950 border border-white/5 rounded-2xl px-5 py-4 outline-none text-zinc-100 focus:border-amber-300/30 focus:shadow-[0_0_20px_rgba(252,211,77,0.08)] transition-all"
-          />
-
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="appearance-none w-full bg-gradient-to-b from-black to-zinc-950 border border-white/5 rounded-2xl px-5 py-4 outline-none text-zinc-100 focus:border-amber-300/30 focus:shadow-[0_0_20px_rgba(252,211,77,0.08)] transition-all"
-          >
-            <option value="ALL" className="bg-black text-white">
-              ALL STATUS
-            </option>
-
-            <option value="RUNNING" className="bg-black text-white">
-              RUNNING
-            </option>
-
-            <option value="DONE" className="bg-black text-white">
-              DONE
-            </option>
-          </select>
-
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="appearance-none w-full bg-gradient-to-b from-black to-zinc-950 border border-white/5 rounded-2xl px-5 py-4 outline-none text-zinc-100 focus:border-amber-300/30 focus:shadow-[0_0_20px_rgba(252,211,77,0.08)] transition-all"
-          >
-            <option value="ALL" className="bg-black text-white">
-              ALL TYPE
-            </option>
-
-            <option value="HAKA PREOPEN" className="bg-black text-white">
-              HAKA PREOPEN
-            </option>
-
-            <option value="BSJP" className="bg-black text-white">
-              BSJP
-            </option>
-
-            <option value="SNIPERAN" className="bg-black text-white">
-              SNIPERAN
-            </option>
-
-            <option value="SWING" className="bg-black text-white">
-              SWING
-            </option>
-          </select>
-        </div>
-
-        {/* SIGNAL TABLE */}
-        <div className="bg-gradient-to-b from-zinc-900 to-black border border-white/5 rounded-3xl overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.35)]">
-          <div className="p-6 border-b border-white/5">
-            <h2 className="text-3xl font-black tracking-tight text-amber-300">
-              SIGNAL TERBARU
-            </h2>
+            >
+              {loading
+                ? "MENYIMPAN..."
+                : mode === "WATCHLIST"
+                  ? "🚀 KIRIM WATCHLIST"
+                  : editingId
+                    ? "UPDATE SIGNAL"
+                    : "SIMPAN SIGNAL"}
+            </button>
           </div>
-          {/* MOBILE SIGNAL CARDS */}
-          <div className="md:hidden space-y-3">
-            {filteredSignals.map((signal) => (
-              <div
-                key={signal.id}
-                className="bg-gradient-to-b from-zinc-900 to-black border border-white/5 rounded-3xl p-4 shadow-[0_0_30px_rgba(0,0,0,0.2)]"
+        )}
+        {mode === "SIGNAL" && (
+          <>
+            {/* FILTER */}
+            <div className="grid md:grid-cols-3 gap-4 mb-6">
+              <input
+                type="text"
+                placeholder="Search Emiten..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full bg-gradient-to-b from-black to-zinc-950 border border-white/5 rounded-2xl px-5 py-4 outline-none text-zinc-100 focus:border-amber-300/30 focus:shadow-[0_0_20px_rgba(252,211,77,0.08)] transition-all"
+              />
+
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="appearance-none w-full bg-gradient-to-b from-black to-zinc-950 border border-white/5 rounded-2xl px-5 py-4 outline-none text-zinc-100 focus:border-amber-300/30 focus:shadow-[0_0_20px_rgba(252,211,77,0.08)] transition-all"
               >
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-xl md:text-2xl font-black text-amber-300">
-                    {signal.emiten}
-                  </h2>
+                <option value="ALL" className="bg-black text-white">
+                  ALL STATUS
+                </option>
 
-                  <span
-                    className={`font-bold ${
-                      signal.status === "DONE"
-                        ? "text-emerald-400"
-                        : "text-rose-400"
-                    }`}
+                <option value="RUNNING" className="bg-black text-white">
+                  RUNNING
+                </option>
+
+                <option value="DONE" className="bg-black text-white">
+                  DONE
+                </option>
+              </select>
+
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="appearance-none w-full bg-gradient-to-b from-black to-zinc-950 border border-white/5 rounded-2xl px-5 py-4 outline-none text-zinc-100 focus:border-amber-300/30 focus:shadow-[0_0_20px_rgba(252,211,77,0.08)] transition-all"
+              >
+                <option value="ALL" className="bg-black text-white">
+                  ALL TYPE
+                </option>
+
+                <option value="HAKA PREOPEN" className="bg-black text-white">
+                  HAKA PREOPEN
+                </option>
+
+                <option value="BSJP" className="bg-black text-white">
+                  BSJP
+                </option>
+
+                <option value="SNIPERAN" className="bg-black text-white">
+                  SNIPERAN
+                </option>
+
+                <option value="SWING" className="bg-black text-white">
+                  SWING
+                </option>
+              </select>
+            </div>
+
+            {/* SIGNAL TABLE */}
+            <div className="bg-gradient-to-b from-zinc-900 to-black border border-white/5 rounded-3xl overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.35)]">
+              <div className="p-6 border-b border-white/5">
+                <h2 className="text-3xl font-black tracking-tight text-amber-300">
+                  SIGNAL TERBARU
+                </h2>
+              </div>
+              {/* MOBILE SIGNAL CARDS */}
+              <div className="md:hidden space-y-3">
+                {filteredSignals.map((signal) => (
+                  <div
+                    key={signal.id}
+                    className="bg-gradient-to-b from-zinc-900 to-black border border-white/5 rounded-3xl p-4 shadow-[0_0_30px_rgba(0,0,0,0.2)]"
                   >
-                    {signal.status}
-                  </span>
-                </div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h2 className="text-xl md:text-2xl font-black text-amber-300">
+                        {signal.emiten}
+                      </h2>
 
-                <div className="space-y-2 text-sm">
-                  <p>
-                    <span className="text-zinc-500">Date:</span>{" "}
-                    {formatDate(signal.tanggal_signal)}
-                  </p>
+                      <span
+                        className={`font-bold ${
+                          signal.status === "DONE"
+                            ? "text-emerald-400"
+                            : "text-rose-400"
+                        }`}
+                      >
+                        {signal.status}
+                      </span>
+                    </div>
 
-                  <p>
-                    <span className="text-zinc-500">Type:</span>{" "}
-                    {signal.trading_type}
-                  </p>
+                    <div className="space-y-2 text-sm">
+                      <p>
+                        <span className="text-zinc-500">Date:</span>{" "}
+                        {formatDate(signal.tanggal_signal)}
+                      </p>
 
-                  <p>
-                    <span className="text-zinc-500">AVG:</span> {signal.avg}
-                  </p>
+                      <p>
+                        <span className="text-zinc-500">Type:</span>{" "}
+                        {signal.trading_type}
+                      </p>
 
-                  <p className="text-emerald-400 font-bold">
-                    PROFIT {signal.profit_percentage}%
-                  </p>
-                </div>
+                      <p>
+                        <span className="text-zinc-500">AVG:</span> {signal.avg}
+                      </p>
 
-                <div className="flex gap-3 mt-5">
-                  <button
-                    onClick={() => {
-                      setEditingId(signal.id);
+                      <p className="text-emerald-400 font-bold">
+                        PROFIT {signal.profit_percentage}%
+                      </p>
+                    </div>
 
-                      setEmiten(signal.emiten || "");
+                    <div className="flex gap-3 mt-5">
+                      <button
+                        onClick={() => {
+                          setEditingId(signal.id);
 
-                      setTradingType(signal.trading_type || "");
+                          setEmiten(signal.emiten || "");
 
-                      setSignalDate(
-                        signal.tanggal_signal
-                          ? new Date(signal.tanggal_signal + "t00:00:00")
-                          : null,
-                      );
+                          setTradingType(signal.trading_type || "");
 
-                      setEntry1(signal.entry_1?.toString() || "");
+                          setSignalDate(
+                            signal.tanggal_signal
+                              ? new Date(signal.tanggal_signal + "t00:00:00")
+                              : null,
+                          );
 
-                      setEntry2(signal.entry_2?.toString() || "");
+                          setEntry1(signal.entry_1?.toString() || "");
 
-                      setEntry3(signal.entry_3?.toString() || "");
+                          setEntry2(signal.entry_2?.toString() || "");
 
-                      setEntry1Date(
-                        signal.entry_1_date
-                          ? new Date(signal.entry_1_date)
-                          : null,
-                      );
+                          setEntry3(signal.entry_3?.toString() || "");
 
-                      setEntry2Date(
-                        signal.entry_2_date
-                          ? new Date(signal.entry_2_date)
-                          : null,
-                      );
+                          setEntry1Date(
+                            signal.entry_1_date
+                              ? new Date(signal.entry_1_date)
+                              : null,
+                          );
 
-                      setEntry3Date(
-                        signal.entry_3_date
-                          ? new Date(signal.entry_3_date)
-                          : null,
-                      );
+                          setEntry2Date(
+                            signal.entry_2_date
+                              ? new Date(signal.entry_2_date)
+                              : null,
+                          );
 
-                      setDoneDate(
-                        signal.done_date ? new Date(signal.done_date) : null,
-                      );
+                          setEntry3Date(
+                            signal.entry_3_date
+                              ? new Date(signal.entry_3_date)
+                              : null,
+                          );
 
-                      setAvg(signal.avg?.toString() || "");
+                          setDoneDate(
+                            signal.done_date
+                              ? new Date(signal.done_date)
+                              : null,
+                          );
 
-                      setTp1(signal.tp_1?.toString() || "");
+                          setAvg(signal.avg?.toString() || "");
 
-                      setTp2(signal.tp_2?.toString() || "");
+                          setTp1(signal.tp_1?.toString() || "");
 
-                      setTp3(signal.tp_3?.toString() || "");
+                          setTp2(signal.tp_2?.toString() || "");
 
-                      setStatus(signal.status || "RUNNING");
+                          setTp3(signal.tp_3?.toString() || "");
 
-                      setHighPrice(signal.high_price?.toString() || "");
+                          setStatus(signal.status || "RUNNING");
 
-                      setProfitPercentage(
-                        signal.profit_percentage?.toString() || "",
-                      );
+                          setHighPrice(signal.high_price?.toString() || "");
 
-                      window.scrollTo({
-                        top: 0,
-                        behavior: "smooth",
-                      });
-                    }}
-                    className="
+                          setProfitPercentage(
+                            signal.profit_percentage?.toString() || "",
+                          );
+
+                          window.scrollTo({
+                            top: 0,
+                            behavior: "smooth",
+                          });
+                        }}
+                        className="
 flex-1
 bg-amber-300/10
 hover:bg-amber-300/20
@@ -1570,95 +2212,97 @@ py-3
 rounded-2xl
 font-bold
 "
-                  >
-                    Edit
-                  </button>
-
-                  <button
-                    onClick={() => deleteSignal(signal.id)}
-                    className="flex-1 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-300 transition-all duration-200 py-3 rounded-2xl font-bold"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full min-w-[900px]">
-              <thead className="bg-gradient-to-r from-zinc-900 to-black border-b border-white/5">
-                <tr>
-                  <th className="p-4 text-left text-zinc-400 font-semibold tracking-wide">
-                    Date
-                  </th>
-
-                  <th className="p-4 text-left text-zinc-400 font-semibold tracking-wide">
-                    Emiten
-                  </th>
-
-                  <th className="p-4 text-left text-zinc-400 font-semibold tracking-wide">
-                    Type
-                  </th>
-
-                  <th className="p-4 text-left text-zinc-400 font-semibold tracking-wide">
-                    AVG
-                  </th>
-
-                  <th className="p-4 text-left text-zinc-400 font-semibold tracking-wide">
-                    Profit
-                  </th>
-
-                  <th className="p-4 text-left text-zinc-400 font-semibold tracking-wide">
-                    Status
-                  </th>
-
-                  <th className="p-4 text-left text-zinc-400 font-semibold tracking-wide">
-                    Action
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {filteredSignals.map((signal) => (
-                  <tr
-                    key={signal.id}
-                    className="border-t border-white/5 hover:bg-white/[0.02] transition-all duration-200"
-                  >
-                    <td className="p-4">{formatDate(signal.tanggal_signal)}</td>
-
-                    <td className="p-4 font-bold text-amber-300">
-                      {signal.emiten}
-                    </td>
-
-                    <td className="p-4">{signal.trading_type}</td>
-
-                    <td className="p-4">{signal.avg}</td>
-
-                    <td className="p-4 text-emerald-400 font-bold">
-                      {signal.profit_percentage}%
-                    </td>
-
-                    <td className="p-4">
-                      <span
-                        className={
-                          signal.status === "DONE"
-                            ? "text-emerald-400 font-bold"
-                            : "text-rose-400 font-bold"
-                        }
                       >
-                        {signal.status}
-                      </span>
-                    </td>
+                        Edit
+                      </button>
 
-                    <td className="p-4">
-                      <div className="flex gap-3">
-                        <button
-                          onClick={async () => {
-                            setSelectedSignal(signal);
+                      <button
+                        onClick={() => deleteSignal(signal.id)}
+                        className="flex-1 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-300 transition-all duration-200 py-3 rounded-2xl font-bold"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full min-w-[900px]">
+                  <thead className="bg-gradient-to-r from-zinc-900 to-black border-b border-white/5">
+                    <tr>
+                      <th className="p-4 text-left text-zinc-400 font-semibold tracking-wide">
+                        Date
+                      </th>
 
-                            await loadSignalHistory(signal.id);
-                          }}
-                          className="
+                      <th className="p-4 text-left text-zinc-400 font-semibold tracking-wide">
+                        Emiten
+                      </th>
+
+                      <th className="p-4 text-left text-zinc-400 font-semibold tracking-wide">
+                        Type
+                      </th>
+
+                      <th className="p-4 text-left text-zinc-400 font-semibold tracking-wide">
+                        AVG
+                      </th>
+
+                      <th className="p-4 text-left text-zinc-400 font-semibold tracking-wide">
+                        Profit
+                      </th>
+
+                      <th className="p-4 text-left text-zinc-400 font-semibold tracking-wide">
+                        Status
+                      </th>
+
+                      <th className="p-4 text-left text-zinc-400 font-semibold tracking-wide">
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {filteredSignals.map((signal) => (
+                      <tr
+                        key={signal.id}
+                        className="border-t border-white/5 hover:bg-white/[0.02] transition-all duration-200"
+                      >
+                        <td className="p-4">
+                          {formatDate(signal.tanggal_signal)}
+                        </td>
+
+                        <td className="p-4 font-bold text-amber-300">
+                          {signal.emiten}
+                        </td>
+
+                        <td className="p-4">{signal.trading_type}</td>
+
+                        <td className="p-4">{signal.avg}</td>
+
+                        <td className="p-4 text-emerald-400 font-bold">
+                          {signal.profit_percentage}%
+                        </td>
+
+                        <td className="p-4">
+                          <span
+                            className={
+                              signal.status === "DONE"
+                                ? "text-emerald-400 font-bold"
+                                : "text-rose-400 font-bold"
+                            }
+                          >
+                            {signal.status}
+                          </span>
+                        </td>
+
+                        <td className="p-4">
+                          <div className="flex gap-3">
+                            <button
+                              onClick={async () => {
+                                setSelectedSignal(signal);
+
+                                await loadSignalHistory(signal.id);
+                              }}
+                              className="
 bg-cyan-500/10
 hover:bg-cyan-500/20
 border
@@ -1671,75 +2315,79 @@ py-2
 rounded-xl
 font-bold
 "
-                        >
-                          Journey
-                        </button>
-                        <button
-                          onClick={() => {
-                            setEditingId(signal.id);
+                            >
+                              Journey
+                            </button>
+                            <button
+                              onClick={() => {
+                                setEditingId(signal.id);
 
-                            setEmiten(signal.emiten || "");
+                                setEmiten(signal.emiten || "");
 
-                            setTradingType(signal.trading_type || "");
+                                setTradingType(signal.trading_type || "");
 
-                            setSignalDate(
-                              signal.tanggal_signal
-                                ? new Date(signal.tanggal_signal + "t00:00:00")
-                                : null,
-                            );
+                                setSignalDate(
+                                  signal.tanggal_signal
+                                    ? new Date(
+                                        signal.tanggal_signal + "t00:00:00",
+                                      )
+                                    : null,
+                                );
 
-                            setEntry1(signal.entry_1?.toString() || "");
+                                setEntry1(signal.entry_1?.toString() || "");
 
-                            setEntry2(signal.entry_2?.toString() || "");
+                                setEntry2(signal.entry_2?.toString() || "");
 
-                            setEntry3(signal.entry_3?.toString() || "");
+                                setEntry3(signal.entry_3?.toString() || "");
 
-                            setEntry1Date(
-                              signal.entry_1_date
-                                ? new Date(signal.entry_1_date)
-                                : null,
-                            );
+                                setEntry1Date(
+                                  signal.entry_1_date
+                                    ? new Date(signal.entry_1_date)
+                                    : null,
+                                );
 
-                            setEntry2Date(
-                              signal.entry_2_date
-                                ? new Date(signal.entry_2_date)
-                                : null,
-                            );
+                                setEntry2Date(
+                                  signal.entry_2_date
+                                    ? new Date(signal.entry_2_date)
+                                    : null,
+                                );
 
-                            setEntry3Date(
-                              signal.entry_3_date
-                                ? new Date(signal.entry_3_date)
-                                : null,
-                            );
+                                setEntry3Date(
+                                  signal.entry_3_date
+                                    ? new Date(signal.entry_3_date)
+                                    : null,
+                                );
 
-                            setDoneDate(
-                              signal.done_date
-                                ? new Date(signal.done_date)
-                                : null,
-                            );
+                                setDoneDate(
+                                  signal.done_date
+                                    ? new Date(signal.done_date)
+                                    : null,
+                                );
 
-                            setAvg(signal.avg?.toString() || "");
+                                setAvg(signal.avg?.toString() || "");
 
-                            setTp1(signal.tp_1?.toString() || "");
+                                setTp1(signal.tp_1?.toString() || "");
 
-                            setTp2(signal.tp_2?.toString() || "");
+                                setTp2(signal.tp_2?.toString() || "");
 
-                            setTp3(signal.tp_3?.toString() || "");
+                                setTp3(signal.tp_3?.toString() || "");
 
-                            setStatus(signal.status || "RUNNING");
+                                setStatus(signal.status || "RUNNING");
 
-                            setHighPrice(signal.high_price?.toString() || "");
+                                setHighPrice(
+                                  signal.high_price?.toString() || "",
+                                );
 
-                            setProfitPercentage(
-                              signal.profit_percentage?.toString() || "",
-                            );
+                                setProfitPercentage(
+                                  signal.profit_percentage?.toString() || "",
+                                );
 
-                            window.scrollTo({
-                              top: 0,
-                              behavior: "smooth",
-                            });
-                          }}
-                          className="
+                                window.scrollTo({
+                                  top: 0,
+                                  behavior: "smooth",
+                                });
+                              }}
+                              className="
 bg-amber-300/10
 hover:bg-amber-300/20
 border
@@ -1752,24 +2400,26 @@ py-2
 rounded-xl
 font-bold
 "
-                        >
-                          Edit
-                        </button>
+                            >
+                              Edit
+                            </button>
 
-                        <button
-                          onClick={() => deleteSignal(signal.id)}
-                          className="bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-300 transition-all duration-200 px-4 py-2 rounded-xl font-bold"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                            <button
+                              onClick={() => deleteSignal(signal.id)}
+                              className="bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-300 transition-all duration-200 px-4 py-2 rounded-xl font-bold"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
         {selectedSignal && (
           <div
             className="
