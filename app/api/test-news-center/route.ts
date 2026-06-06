@@ -11,6 +11,8 @@ export async function GET() {
       kumparan: news.filter((item) => item.source === "Kumparan").length,
 
       emitennews: news.filter((item) => item.source === "EmitenNews").length,
+
+      katadata: news.filter((item) => item.source === "Katadata").length,
     };
 
     return Response.json({
