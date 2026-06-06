@@ -4,9 +4,9 @@ import { formatDiscordNews } from "@/lib/news/formatDiscordNews";
 import { sendDiscordMessage } from "@/lib/discord";
 
 export async function GET(request: Request) {
-  const secret = new URL(request.url).searchParams.get("secret");
+  const authHeader = request.headers.get("authorization");
 
-  if (secret !== process.env.CRON_SECRET) {
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return Response.json(
       {
         success: false,
