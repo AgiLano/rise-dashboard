@@ -1,0 +1,18 @@
+export const NEWS_KEYWORDS = [
+  "saham",
+  "emiten",
+  "ihsg",
+  "bei",
+  "idx",
+  "ipo",
+  "dividen",
+  "investor",
+  "investasi",
+  "ekonomi",
+  "keuangan",
+  "rupiah",
+  "bank",
+  "ojk",
+  "obligasi",
+  "pasar modal",
+];
