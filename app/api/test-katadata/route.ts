@@ -1,13 +1,10 @@
+import { getKatadataNews } from "@/lib/news/katadata";
+
 export async function GET() {
-  const response = await fetch("https://katadata.co.id/finansial/bursa", {
-    cache: "no-store",
-  });
+  const news = await getKatadataNews();
 
-  const html = await response.text();
-
-  return new Response(html, {
-    headers: {
-      "Content-Type": "text/html",
-    },
+  return Response.json({
+    total: news.length,
+    news: news.slice(0, 10),
   });
 }

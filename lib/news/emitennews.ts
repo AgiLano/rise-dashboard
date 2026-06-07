@@ -49,7 +49,7 @@ export async function getEmitenNews(): Promise<NewsItem[]> {
     const title = $(element)
       .text()
       .replace(/\s+/g, " ")
-      .replace(/\d+\s+(jam|hari)\s+yang\s+lalu/gi, "")
+      .replace(/\d+\s+(detik|menit|jam|hari)\s+yang\s+lalu/gi, "")
       .trim();
 
     const link = $(element).attr("href");
