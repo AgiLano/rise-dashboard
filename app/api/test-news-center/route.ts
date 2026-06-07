@@ -18,7 +18,11 @@ export async function GET() {
     return Response.json({
       total: news.length,
       sources,
-      latest: news.slice(0, 10),
+      latest: news.slice(0, 10).map((item) => ({
+        source: item.source,
+        title: item.title,
+        publishedAt: item.publishedAt,
+      })),
     });
   } catch (error) {
     return Response.json(
