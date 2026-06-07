@@ -13,5 +13,13 @@ export async function getAllNews(): Promise<NewsItem[]> {
       getKatadataNews(),
     ]);
 
-  return [...bloombergNews, ...kumparanNews, ...emitenNews, ...katadataNews];
+  return [
+    ...bloombergNews,
+    ...kumparanNews,
+    ...emitenNews,
+    ...katadataNews,
+  ].sort(
+    (a, b) =>
+      new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
+  );
 }

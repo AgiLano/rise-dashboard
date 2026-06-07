@@ -28,6 +28,7 @@ export async function getKatadataNews(): Promise<NewsItem[]> {
         title,
         link,
         source: "Katadata",
+        publishedAt: new Date().toISOString(),
       });
     }
   });

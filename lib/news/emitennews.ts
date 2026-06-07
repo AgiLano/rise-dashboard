@@ -27,6 +27,7 @@ export async function getEmitenNews(): Promise<NewsItem[]> {
         title,
         link,
         source: "EmitenNews",
+        publishedAt: new Date().toISOString(),
       });
     }
   });

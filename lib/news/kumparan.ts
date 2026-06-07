@@ -8,10 +8,14 @@ export async function getKumparanNews(): Promise<NewsItem[]> {
   const feed = await parser.parseURL("https://lapi.kumparan.com/v2.0/rss/");
 
   return feed.items
-    .filter((item) => item.title && item.link && isRelevantNews(item.title))
+    .filter(
+      (item) =>
+        item.title && item.link && item.pubDate && isRelevantNews(item.title),
+    )
     .map((item) => ({
       title: item.title!,
       link: item.link!,
       source: "Kumparan",
+      publishedAt: new Date(item.pubDate!).toISOString(),
     }));
 }
