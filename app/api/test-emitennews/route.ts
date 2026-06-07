@@ -1,10 +1,16 @@
-import { getEmitenNews } from "@/lib/news/emitennews";
-
 export async function GET() {
-  const news = await getEmitenNews();
+  const response = await fetch(
+    "https://www.emitennews.com/news/scg-buang-1285-miliar-saham-tpia-siapa-yang-tampung",
+    {
+      cache: "no-store",
+    },
+  );
 
-  return Response.json({
-    total: news.length,
-    news: news.slice(0, 10),
+  const html = await response.text();
+
+  return new Response(html, {
+    headers: {
+      "Content-Type": "text/html",
+    },
   });
 }
