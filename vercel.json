@@ -1,8 +1,1 @@
-{
-  "crons": [
-    {
-      "path": "/api/send-news-safe",
-      "schedule": "*/10 * * * *"
-    }
-  ]
-}
+{}
