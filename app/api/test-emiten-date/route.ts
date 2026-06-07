@@ -12,9 +12,9 @@ export async function GET() {
 
   const $ = cheerio.load(html);
 
-  const publishedAt = $(".time-posted").first().text().trim();
+  const rawDate = $(".time-posted").first().text().trim();
 
   return Response.json({
-    publishedAt,
+    rawDate,
   });
 }
