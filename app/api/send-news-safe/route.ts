@@ -21,7 +21,7 @@ export async function GET(request: Request) {
 
     let sentCount = 0;
 
-    for (const item of news.slice(0, 10)) {
+    for (const item of news.slice(0, 50)) {
       const alreadySent = await redis.get(item.link);
 
       if (alreadySent) {
