@@ -192,6 +192,16 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    async function requestPermission() {
+      const permission = await Notification.requestPermission();
+
+      console.log("Notification Permission:", permission);
+    }
+
+    requestPermission();
+  }, []);
+
+  useEffect(() => {
     getSignals();
 
     const channel = supabase
