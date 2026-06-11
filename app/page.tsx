@@ -236,6 +236,17 @@ export default function Home() {
               },
             },
           });
+
+          if (
+            payload.eventType === "INSERT" &&
+            Notification.permission === "granted"
+          ) {
+            new Notification("📈 SIGNAL BARU", {
+              body: `${payload.new.emiten} masuk ${payload.new.trading_type}`,
+              icon: "/manifest-icon-192.png",
+            });
+          }
+
           // NOTIFICATION UPDATE
           if (payload.eventType === "UPDATE") {
             toast.info("📝 SIGNAL DIPERBARUI", {
