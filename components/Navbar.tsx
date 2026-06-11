@@ -39,6 +39,21 @@ export default function Navbar() {
 
     loadNotifications();
 
+    const channel = supabase
+      .channel("navbar-notifications")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+        },
+        () => {
+          setNotificationCount((prev) => prev + 1);
+        },
+      )
+      .subscribe();
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -47,6 +62,8 @@ export default function Navbar() {
 
     return () => {
       subscription.unsubscribe();
+
+      supabase.removeChannel(channel);
     };
   }, []);
 
