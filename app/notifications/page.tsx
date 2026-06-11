@@ -132,19 +132,22 @@ export default function NotificationsPage() {
       ) : (
         <div className="space-y-4">
           {notifications.map((notif) => (
-            <div
+            <Link
               key={notif.id}
+              href={notif.signal_id ? `/?signal=${notif.signal_id}` : "/"}
               className="
-              bg-gradient-to-b
-              from-zinc-900
-              to-black
-              border
-              border-white/5
-              rounded-3xl
-              p-6
-              hover:border-amber-300/20
-              transition-all
-            "
+      block
+      bg-gradient-to-b
+      from-zinc-900
+      to-black
+      border
+      border-white/5
+      rounded-3xl
+      p-6
+      hover:border-amber-300/20
+      hover:scale-[1.01]
+      transition-all
+    "
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -196,7 +199,7 @@ export default function NotificationsPage() {
                   {new Date(notif.created_at).toLocaleString("id-ID")}
                 </p>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}
