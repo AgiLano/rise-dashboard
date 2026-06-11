@@ -53,6 +53,7 @@ export default function Navbar() {
           table: "notifications",
         },
         async () => {
+          console.log("Realtime event received");
           const { count } = await supabase
             .from("notifications")
             .select("*", {
