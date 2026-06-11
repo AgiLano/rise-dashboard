@@ -545,6 +545,16 @@ export default function AdminPage() {
       editingId ? "Signal berhasil diupdate!" : "Signal berhasil disimpan!",
     );
 
+    if (!editingId) {
+      await supabase.from("notifications").insert([
+        {
+          title: "📈 Signal Baru",
+          message: `${emiten} masuk ${tradingType}`,
+          type: "signal",
+        },
+      ]);
+    }
+
     let discordTitle = "🚀 SIGNAL BARU RISE";
 
     let discordColor = 0xeab308;
