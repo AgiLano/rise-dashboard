@@ -413,6 +413,8 @@ export default function AdminPage() {
 
     let error = null;
 
+    let newSignalId = null;
+
     // =========================
     // UPDATE
     // =========================
@@ -518,6 +520,8 @@ export default function AdminPage() {
         .select()
         .single();
 
+      newSignalId = response.data?.id;
+
       error = response.error;
 
       if (response.data) {
@@ -551,6 +555,7 @@ export default function AdminPage() {
           title: "📈 Signal Baru",
           message: `${emiten} masuk ${tradingType}`,
           type: "signal",
+          signal_id: newSignalId,
         },
       ]);
     }

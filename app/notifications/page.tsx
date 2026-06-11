@@ -29,13 +29,6 @@ export default function NotificationsPage() {
       })
       .eq("is_read", false);
 
-    await supabase
-      .from("notifications")
-      .update({
-        is_read: true,
-      })
-      .eq("is_read", false);
-
     window.dispatchEvent(new CustomEvent("notifications-read"));
   }
 
@@ -164,10 +157,41 @@ export default function NotificationsPage() {
                   </p>
                 </div>
 
-                <div className="text-3xl">🔔</div>
+                <div
+                  className="
+    w-12
+    h-12
+    rounded-2xl
+    bg-amber-300/10
+    border
+    border-amber-300/20
+    flex
+    items-center
+    justify-center
+    text-xl
+  "
+                >
+                  📈
+                </div>
               </div>
 
-              <div className="mt-5 pt-4 border-t border-white/5">
+              <div className="mt-5 pt-4 border-t border-white/5 flex items-center justify-between">
+                <div
+                  className="
+      px-3
+      py-1
+      rounded-full
+      text-xs
+      font-bold
+      bg-emerald-500/10
+      text-emerald-400
+      border
+      border-emerald-500/20
+    "
+                >
+                  ✓ Dibaca
+                </div>
+
                 <p className="text-zinc-500 text-sm">
                   {new Date(notif.created_at).toLocaleString("id-ID")}
                 </p>
