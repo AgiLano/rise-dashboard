@@ -158,12 +158,16 @@ export default function Home() {
         },
         (payload: any) => {
           // NOTIFICATION INSERT
-          if (payload.eventType === "INSERT") {
-            toast.success("📈 SIGNAL BARU", {
-              description: `${payload.new.emiten} masuk ${payload.new.trading_type}`,
-            });
-          }
+          toast.success("📈 SIGNAL BARU", {
+            description: `${payload.new.emiten} masuk ${payload.new.trading_type}`,
 
+            action: {
+              label: "Lihat",
+              onClick: () => {
+                router.push("/notifications");
+              },
+            },
+          });
           // NOTIFICATION UPDATE
           if (payload.eventType === "UPDATE") {
             toast.info("📝 SIGNAL DIPERBARUI", {
