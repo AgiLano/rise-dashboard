@@ -1,19 +1,23 @@
-self.addEventListener("install", (event) => {
-  console.log("Service Worker Installed");
-});
-
-self.addEventListener("activate", (event) => {
-  console.log("Service Worker Activated");
-});
-
 self.addEventListener("push", (event) => {
-  const data = event.data?.json();
+  let title = "RISE";
+  let body = "Push Notification Test";
 
-  self.registration.showNotification(data.title || "RISE", {
-    body: data.body,
-    icon: "/manifest-icon-192.png",
-    badge: "/manifest-icon-192.png",
-  });
+  try {
+    const data = event.data?.json();
+
+    title = data.title || "RISE";
+    body = data.body || "Push Notification Test";
+  } catch {
+    body = event.data?.text() || "Push Notification Test";
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon: "/manifest-icon-192.png",
+      badge: "/manifest-icon-192.png",
+    }),
+  );
 });
 
 self.addEventListener("notificationclick", (event) => {
