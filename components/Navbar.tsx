@@ -119,6 +119,17 @@ export default function Navbar() {
             History Recap
           </Link>
 
+          <Link
+            href="/notifications"
+            className={`px-3 md:px-5 py-2 text-sm md:text-base rounded-xl font-bold transition-all ${
+              pathname === "/notifications"
+                ? "bg-yellow-400 text-black"
+                : "bg-zinc-900 text-white hover:bg-zinc-800"
+            }`}
+          >
+            🔔 Notifications
+          </Link>
+
           {(isAdmin || isMember) && (
             <button
               onClick={handleLogout}
