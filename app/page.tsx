@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+
 import { useRouter } from "next/navigation";
 
 import { supabase } from "../lib/supabase";
@@ -32,8 +32,6 @@ import {
 } from "recharts";
 
 export default function Home() {
-  const searchParams = useSearchParams();
-
   const router = useRouter();
 
   const [signals, setSignals] = useState<any[]>([]);
