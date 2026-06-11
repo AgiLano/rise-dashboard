@@ -8,8 +8,12 @@ import autoTable from "jspdf-autotable";
 import { toPng } from "html-to-image";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { useRouter } from "next/navigation";
 
 export default function HistoryPage() {
+  const router = useRouter();
+
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [signals, setSignals] = useState<any[]>([]);
   const [journeyData, setJourneyData] = useState<any[]>([]);
   const [search, setSearch] = useState("");
@@ -19,6 +23,25 @@ export default function HistoryPage() {
   const [specificDateFilter, setSpecificDateFilter] = useState<Date | null>(
     null,
   );
+
+  useEffect(() => {
+    async function checkAccess() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const member = localStorage.getItem("rise_member");
+
+      if (!session && !member) {
+        router.push("/login");
+        return;
+      }
+
+      setCheckingAuth(false);
+    }
+
+    checkAccess();
+  }, [router]);
 
   useEffect(() => {
     async function fetchHistoryData() {
@@ -399,7 +422,13 @@ export default function HistoryPage() {
       element.style.display = "";
     }
   }
-
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center text-white">
+        Loading...
+      </div>
+    );
+  }
   return (
     <>
       <Navbar />
