@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 import { supabase } from "../lib/supabase";
 
@@ -32,8 +32,6 @@ import {
 
 export default function Home() {
   const router = useRouter();
-
-  const searchParams = useSearchParams();
 
   const [signals, setSignals] = useState<any[]>([]);
 
@@ -561,25 +559,6 @@ export default function Home() {
       </section>
     );
   }
-
-  useEffect(() => {
-    const signalId = searchParams.get("signal");
-
-    if (!signalId) return;
-
-    const timer = setTimeout(() => {
-      const element = document.getElementById(`signal-${signalId}`);
-
-      if (!element) return;
-
-      element.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [signals, searchParams]);
 
   if (checkingAuth) {
     return (
