@@ -202,6 +202,17 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (Notification.permission !== "granted") return;
+
+    setTimeout(() => {
+      new Notification("🚀 RISE Test Notification", {
+        body: "Push Notification berhasil berjalan",
+        icon: "/manifest-icon-192.png",
+      });
+    }, 3000);
+  }, []);
+
+  useEffect(() => {
     getSignals();
 
     const channel = supabase
