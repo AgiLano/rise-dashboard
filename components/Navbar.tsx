@@ -29,10 +29,13 @@ export default function Navbar() {
     loadUser();
 
     async function loadNotifications() {
-      const { count } = await supabase.from("notifications").select("*", {
-        count: "exact",
-        head: true,
-      });
+      const { count } = await supabase
+        .from("notifications")
+        .select("*", {
+          count: "exact",
+          head: true,
+        })
+        .eq("is_read", false);
 
       setNotificationCount(count || 0);
     }
