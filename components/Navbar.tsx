@@ -11,6 +11,7 @@ export default function Navbar() {
 
   const [isAdmin, setIsAdmin] = useState(false);
   const [isMember, setIsMember] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
 
   useEffect(() => {
     async function loadUser() {
@@ -26,6 +27,17 @@ export default function Navbar() {
     }
 
     loadUser();
+
+    async function loadNotifications() {
+      const { count } = await supabase.from("notifications").select("*", {
+        count: "exact",
+        head: true,
+      });
+
+      setNotificationCount(count || 0);
+    }
+
+    loadNotifications();
 
     const {
       data: { subscription },
@@ -121,13 +133,36 @@ export default function Navbar() {
 
           <Link
             href="/notifications"
-            className={`px-3 md:px-5 py-2 text-sm md:text-base rounded-xl font-bold transition-all ${
+            className={`relative px-3 md:px-5 py-2 text-sm md:text-base rounded-xl font-bold transition-all ${
               pathname === "/notifications"
                 ? "bg-yellow-400 text-black"
                 : "bg-zinc-900 text-white hover:bg-zinc-800"
             }`}
           >
             🔔 Notifications
+            {notificationCount > 0 && (
+              <span
+                className="
+      absolute
+      -top-2
+      -right-2
+      min-w-[22px]
+      h-[22px]
+      px-1
+      rounded-full
+      bg-red-500
+      text-white
+      text-xs
+      font-black
+      flex
+      items-center
+      justify-center
+      shadow-lg
+    "
+              >
+                {notificationCount}
+              </span>
+            )}
           </Link>
 
           {(isAdmin || isMember) && (
