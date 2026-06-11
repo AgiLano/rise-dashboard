@@ -179,6 +179,19 @@ export default function Home() {
   }, [router]);
 
   useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/sw.js")
+        .then(() => {
+          console.log("SW Registered");
+        })
+        .catch((error) => {
+          console.error("SW Error:", error);
+        });
+    }
+  }, []);
+
+  useEffect(() => {
     getSignals();
 
     const channel = supabase
