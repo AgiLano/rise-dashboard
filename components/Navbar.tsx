@@ -47,12 +47,20 @@ export default function Navbar() {
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
+          event: "*",
           schema: "public",
           table: "notifications",
         },
-        () => {
-          setNotificationCount((prev) => prev + 1);
+        async () => {
+          const { count } = await supabase
+            .from("notifications")
+            .select("*", {
+              count: "exact",
+              head: true,
+            })
+            .eq("is_read", false);
+
+          setNotificationCount(count || 0);
         },
       )
       .subscribe();
