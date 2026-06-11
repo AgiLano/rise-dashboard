@@ -159,21 +159,23 @@ export default function Home() {
         (payload: any) => {
           // NOTIFICATION INSERT
           if (payload.eventType === "INSERT") {
-            toast.success("Signal Baru!", {
-              description: `${payload.new.emiten} - ${payload.new.trading_type}`,
+            toast.success("📈 SIGNAL BARU", {
+              description: `${payload.new.emiten} masuk ${payload.new.trading_type}`,
             });
           }
 
           // NOTIFICATION UPDATE
           if (payload.eventType === "UPDATE") {
-            toast.info("Signal Updated", {
+            toast.info("📝 SIGNAL DIPERBARUI", {
               description: `${payload.new.emiten} berhasil diperbarui`,
             });
           }
 
           // NOTIFICATION DELETE
           if (payload.eventType === "DELETE") {
-            toast.error("Signal Deleted");
+            toast.error("📈 SIGNAL DIHAPUS", {
+              description: `${payload.old.emiten} telah dihapus`,
+            });
           }
 
           getSignals();
