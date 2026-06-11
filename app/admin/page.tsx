@@ -503,6 +503,69 @@ export default function AdminPage() {
         ]);
       }
 
+      if (updateEvent === "TARGET_ACHIEVED") {
+        await fetch("/api/push", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            title: "🎯 TARGET ACHIEVED",
+            body: `${emiten}
+
+Profit +${profitPercentage || 0}%`,
+          }),
+        });
+      }
+
+      if (updateEvent === "ENTRY_2_ADDED") {
+        await fetch("/api/push", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            title: "➕ ENTRY 2 DITAMBAHKAN",
+            body: `${emiten}
+
+Entry 2 : ${entry2}
+AVG Baru : ${avg}`,
+          }),
+        });
+      }
+
+      if (updateEvent === "ENTRY_3_ADDED") {
+        await fetch("/api/push", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            title: "➕ ENTRY 3 DITAMBAHKAN",
+            body: `${emiten}
+
+Entry 3 : ${entry3}
+AVG Baru : ${avg}`,
+          }),
+        });
+      }
+
+      if (updateEvent === "TP_REVISED") {
+        await fetch("/api/push", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            title: "🎯 TARGET DIREVISI",
+            body: `${emiten}
+
+TP Lama : ${oldTp1}
+TP Baru : ${tp1}`,
+          }),
+        });
+      }
+
       error = response.error;
     }
 
@@ -558,6 +621,20 @@ export default function AdminPage() {
           signal_id: newSignalId,
         },
       ]);
+
+      await fetch("/api/push", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: "📈 Signal Baru RISE",
+          body: `${emiten} • ${tradingType}
+AVG ${avg}
+TP1 ${tp1}`,
+          signalId: newSignalId,
+        }),
+      });
     }
 
     let discordTitle = "🚀 SIGNAL BARU RISE";

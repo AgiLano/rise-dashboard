@@ -7,31 +7,50 @@ self.addEventListener("activate", () => {
 });
 
 self.addEventListener("push", (event) => {
+  console.log("PUSH RECEIVED");
+
   let title = "📈 RISE";
   let body = "Signal baru tersedia";
 
   try {
     const data = event.data?.json();
 
+    console.log("PUSH DATA:", data);
+
     title = data?.title || "📈 RISE";
     body = data?.body || "Signal baru tersedia";
-  } catch {
+  } catch (error) {
+    console.log("PUSH TEXT");
+
     body = event.data?.text() || "Signal baru tersedia";
   }
 
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body,
-      icon: "/manifest-icon-192.png",
-      badge: "/manifest-icon-192.png",
-      tag: "rise-signal",
-      renotify: true,
-      requireInteraction: false,
-    }),
+    self.registration
+      .showNotification(title, {
+        body,
+        icon: "/manifest-icon-192.png",
+        badge: "/manifest-icon-192.png",
+        tag: "rise-signal",
+        renotify: true,
+        requireInteraction: true,
+
+        data: {
+          signalId: data?.signalId || null,
+        },
+      })
+      .then(() => {
+        console.log("🔥 NOTIFICATION SHOWN");
+      })
+      .catch((error) => {
+        console.error("❌ NOTIFICATION ERROR", error);
+      }),
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
+  console.log("NOTIFICATION CLICKED");
+
   event.notification.close();
 
   event.waitUntil(
@@ -47,7 +66,13 @@ self.addEventListener("notificationclick", (event) => {
           }
         }
 
-        return clients.openWindow("https://ritelsociety-dashboard.vercel.app");
+        const signalId = event.notification.data?.signalId;
+
+        return clients.openWindow(
+          signalId
+            ? `https://ritelsociety-dashboard.vercel.app/?signal=${signalId}`
+            : "https://ritelsociety-dashboard.vercel.app",
+        );
       }),
   );
 });

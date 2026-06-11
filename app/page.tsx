@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 
 import { supabase } from "../lib/supabase";
@@ -31,6 +32,8 @@ import {
 } from "recharts";
 
 export default function Home() {
+  const searchParams = useSearchParams();
+
   const router = useRouter();
 
   const [signals, setSignals] = useState<any[]>([]);
@@ -67,6 +70,43 @@ export default function Home() {
   const [highlightedSignal, setHighlightedSignal] = useState<number | null>(
     null,
   );
+
+  function urlBase64ToUint8Array(base64String: string) {
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+
+    const base64 = (base64String + padding)
+      .replace(/-/g, "+")
+      .replace(/_/g, "/");
+
+    const rawData = window.atob(base64);
+
+    return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
+  }
+
+  async function subscribePush() {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(
+          process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+        ),
+      });
+
+      const data = subscription.toJSON();
+
+      await supabase.from("push_subscriptions").insert({
+        endpoint: data.endpoint,
+        p256dh: data.keys?.p256dh,
+        auth: data.keys?.auth,
+      });
+
+      console.log("Push Subscription Saved", data);
+    } catch (error) {
+      console.error("Push Subscription Error", error);
+    }
+  }
 
   useEffect(() => {
     if (signals.length === 0) return;
@@ -196,20 +236,17 @@ export default function Home() {
       const permission = await Notification.requestPermission();
 
       console.log("Notification Permission:", permission);
+
+      if (permission === "granted") {
+        await subscribePush();
+      }
     }
 
     requestPermission();
   }, []);
 
   useEffect(() => {
-    if (Notification.permission !== "granted") return;
-
-    console.log("TEST NOTIFICATION");
-
-    new Notification("🚀 RISE Test Notification", {
-      body: "Push Notification berhasil berjalan",
-      icon: "/manifest-icon-192.png",
-    });
+    console.log("VAPID KEY:", process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY);
   }, []);
 
   useEffect(() => {
