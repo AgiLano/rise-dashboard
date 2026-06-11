@@ -21,6 +21,22 @@ export default function NotificationsPage() {
     }
 
     setNotifications(data || []);
+
+    await supabase
+      .from("notifications")
+      .update({
+        is_read: true,
+      })
+      .eq("is_read", false);
+
+    await supabase
+      .from("notifications")
+      .update({
+        is_read: true,
+      })
+      .eq("is_read", false);
+
+    window.dispatchEvent(new CustomEvent("notifications-read"));
   }
 
   useEffect(() => {

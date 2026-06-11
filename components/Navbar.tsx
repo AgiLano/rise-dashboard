@@ -14,6 +14,11 @@ export default function Navbar() {
   const [notificationCount, setNotificationCount] = useState(0);
 
   useEffect(() => {
+    const handleNotificationsRead = () => {
+      setNotificationCount(0);
+    };
+
+    window.addEventListener("notifications-read", handleNotificationsRead);
     async function loadUser() {
       const {
         data: { session },
@@ -36,8 +41,6 @@ export default function Navbar() {
           head: true,
         })
         .eq("is_read", false);
-
-      console.log("Notifications marked as read");
       setNotificationCount(count || 0);
     }
 
@@ -77,6 +80,8 @@ export default function Navbar() {
       subscription.unsubscribe();
 
       supabase.removeChannel(channel);
+
+      window.removeEventListener("notifications-read", handleNotificationsRead);
     };
   }, []);
 
