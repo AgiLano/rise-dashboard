@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { supabase } from "../lib/supabase";
 
@@ -32,6 +32,8 @@ import {
 
 export default function Home() {
   const router = useRouter();
+
+  const searchParams = useSearchParams();
 
   const [signals, setSignals] = useState<any[]>([]);
 
@@ -389,6 +391,7 @@ export default function Home() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-5">
         {data.map((signal) => (
           <div
+            id={`signal-${signal.id}`}
             key={signal.id}
             className="bg-gradient-to-b from-zinc-900 to-black border border-white/5 rounded-3xl p-5 hover:border-white/10 hover:shadow-[0_0_30px_rgba(252,211,77,0.08)] hover:-translate-y-1 transition-all duration-300"
           >
@@ -558,6 +561,26 @@ export default function Home() {
       </section>
     );
   }
+
+  useEffect(() => {
+    const signalId = searchParams.get("signal");
+
+    if (!signalId) return;
+
+    const timer = setTimeout(() => {
+      const element = document.getElementById(`signal-${signalId}`);
+
+      if (!element) return;
+
+      element.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [signals, searchParams]);
+
   if (checkingAuth) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center text-white">
