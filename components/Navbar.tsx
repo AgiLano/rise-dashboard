@@ -37,6 +37,7 @@ export default function Navbar() {
         })
         .eq("is_read", false);
 
+      console.log("Notifications marked as read");
       setNotificationCount(count || 0);
     }
 
