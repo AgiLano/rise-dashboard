@@ -15,3 +15,9 @@ self.addEventListener("push", (event) => {
     badge: "/manifest-icon-192.png",
   });
 });
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  event.waitUntil(clients.openWindow("/"));
+});
