@@ -63,6 +63,40 @@ export default function Home() {
     sniperan: true,
     swing: true,
   });
+
+  const [highlightedSignal, setHighlightedSignal] = useState<number | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (signals.length === 0) return;
+
+    const params = new URLSearchParams(window.location.search);
+
+    const signalId = params.get("signal");
+
+    if (!signalId) return;
+
+    const id = Number(signalId);
+
+    setHighlightedSignal(id);
+
+    setTimeout(() => {
+      const element = document.getElementById(`signal-${id}`);
+
+      if (element) {
+        element.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }
+    }, 800);
+
+    setTimeout(() => {
+      setHighlightedSignal(null);
+    }, 5000);
+  }, [signals]);
+
   function toggleSection(section: keyof typeof openSections) {
     setOpenSections((prev) => ({
       ...prev,
@@ -391,7 +425,21 @@ export default function Home() {
           <div
             id={`signal-${signal.id}`}
             key={signal.id}
-            className="bg-gradient-to-b from-zinc-900 to-black border border-white/5 rounded-3xl p-5 hover:border-white/10 hover:shadow-[0_0_30px_rgba(252,211,77,0.08)] hover:-translate-y-1 transition-all duration-300"
+            className={`
+    bg-gradient-to-b
+    from-zinc-900
+    to-black
+    rounded-3xl
+    p-5
+    transition-all
+    duration-500
+
+    ${
+      highlightedSignal === signal.id
+        ? "border-2 border-amber-300 shadow-[0_0_40px_rgba(252,211,77,0.45)]"
+        : "border border-white/5"
+    }
+  `}
           >
             {/* HEADER */}
             <div className="flex justify-between items-start mb-5">
