@@ -322,6 +322,31 @@ export default function Home() {
     return cocokSearch && cocokStatus && cocokType;
   });
 
+  useEffect(() => {
+    if (!search.trim()) return;
+
+    if (filteredSignals.length === 0) return;
+
+    const firstSignal = filteredSignals[0];
+
+    setHighlightedSignal(firstSignal.id);
+
+    setTimeout(() => {
+      const element = document.getElementById(`signal-${firstSignal.id}`);
+
+      if (element) {
+        element.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }
+    }, 300);
+
+    setTimeout(() => {
+      setHighlightedSignal(null);
+    }, 3000);
+  }, [search]);
+
   // =========================
   // CATEGORY
   // =========================
