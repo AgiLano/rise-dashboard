@@ -2,16 +2,19 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const response = await fetch("http://localhost:3000/api/push", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_SITE_URL}/api/push`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: "🚀 RISE TEST",
+          body: "Push Notification berhasil dikirim",
+        }),
       },
-      body: JSON.stringify({
-        title: "🚀 RISE TEST",
-        body: "Push Notification berhasil dikirim",
-      }),
-    });
+    );
 
     const result = await response.json();
 
