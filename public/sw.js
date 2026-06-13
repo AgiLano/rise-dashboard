@@ -11,6 +11,7 @@ self.addEventListener("push", (event) => {
 
   let title = "📈 RISE";
   let body = "Signal baru tersedia";
+  let signalId = null;
 
   try {
     const data = event.data?.json();
@@ -19,6 +20,7 @@ self.addEventListener("push", (event) => {
 
     title = data?.title || "📈 RISE";
     body = data?.body || "Signal baru tersedia";
+    signalId = data?.signalId || null;
   } catch (error) {
     console.log("PUSH TEXT");
 
@@ -34,9 +36,8 @@ self.addEventListener("push", (event) => {
         tag: "rise-signal",
         renotify: true,
         requireInteraction: true,
-
         data: {
-          signalId: data?.signalId || null,
+          signalId,
         },
       })
       .then(() => {
