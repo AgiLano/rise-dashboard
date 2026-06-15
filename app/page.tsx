@@ -94,11 +94,23 @@ export default function Home() {
 
       const data = subscription.toJSON();
 
-      await supabase.from("push_subscriptions").insert({
-        endpoint: data.endpoint,
-        p256dh: data.keys?.p256dh,
-        auth: data.keys?.auth,
-      });
+      const { data: existing } = await supabase
+        .from("push_subscriptions")
+        .select("endpoint")
+        .eq("endpoint", data.endpoint)
+        .maybeSingle();
+
+      if (!existing) {
+        await supabase.from("push_subscriptions").insert({
+          endpoint: data.endpoint,
+          p256dh: data.keys?.p256dh,
+          auth: data.keys?.auth,
+        });
+
+        console.log("Push Subscription Saved");
+      } else {
+        console.log("Subscription Already Exists");
+      }
 
       console.log("Push Subscription Saved", data);
     } catch (error) {
