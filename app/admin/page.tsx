@@ -2,6 +2,7 @@
 
 import Navbar from "@/components/Navbar";
 import { useEffect, useState, useRef } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 import toast from "react-hot-toast";
@@ -92,6 +93,14 @@ export default function AdminPage() {
   const [memberPackage, setMemberPackage] = useState("Monthly");
 
   const [memberPassword, setMemberPassword] = useState("");
+
+  const [memberPrice, setMemberPrice] = useState("127999");
+
+  const [showPassword, setShowPassword] = useState(false);
+
+  const [visiblePasswords, setVisiblePasswords] = useState<
+    Record<number, boolean>
+  >({});
 
   useEffect(() => {
     const today = new Date();
@@ -1013,6 +1022,7 @@ ${watchlistNotes || "-"}
           password: memberPassword,
           role: "member",
           paket: memberPackage,
+          harga: Number(memberPrice),
           start_date: startDate,
           end_date: endDate,
         })
@@ -1027,6 +1037,7 @@ ${watchlistNotes || "-"}
           password: memberPassword,
           role: "member",
           paket: memberPackage,
+          harga: Number(memberPrice),
           start_date: startDate,
           end_date: endDate,
         },
@@ -1052,6 +1063,7 @@ ${watchlistNotes || "-"}
     setDiscordId("");
     setMemberPackage("Monthly");
     setMemberPassword("");
+    setMemberPrice("127999");
 
     setEditingMemberId(null);
   }
@@ -1665,12 +1677,56 @@ ${watchlistNotes || "-"}
                   className="bg-black border border-white/10 rounded-xl px-4 py-3 text-white"
                 />
 
-                <input
-                  type="password"
-                  placeholder="Password Member"
-                  value={memberPassword}
-                  onChange={(e) => setMemberPassword(e.target.value)}
-                  className="
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Password Member"
+                    value={memberPassword}
+                    onChange={(e) => setMemberPassword(e.target.value)}
+                    className="
+w-full
+bg-black
+border
+border-white/10
+rounded-2xl
+px-4
+py-4
+pr-14
+text-white
+placeholder:text-zinc-500
+"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="
+absolute
+right-4
+top-1/2
+-transform
+-translate-y-1/2
+text-zinc-400
+hover:text-amber-300
+transition-all
+duration-200
+"
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-zinc-400 mb-2">
+                    Harga Paket
+                  </label>
+
+                  <input
+                    type="number"
+                    value={memberPrice}
+                    onChange={(e) => setMemberPrice(e.target.value)}
+                    placeholder="127999"
+                    className="
 w-full
 bg-black
 border
@@ -1681,7 +1737,8 @@ py-4
 text-white
 placeholder:text-zinc-500
 "
-                />
+                  />
+                </div>
 
                 <input
                   type="date"
@@ -1858,7 +1915,9 @@ placeholder:text-zinc-500
                     <tr className="border-b border-white/10">
                       <th className="text-left p-3">Nama</th>
                       <th className="text-left p-3">Discord</th>
+                      <th className="text-left p-3">Password</th>
                       <th className="text-left p-3">Paket</th>
+                      <th className="text-left p-3">Harga</th>
                       <th className="text-left p-3">Mulai</th>
                       <th className="text-left p-3">Berakhir</th>
                       <th className="text-left p-3">Sisa Hari</th>
@@ -1873,8 +1932,41 @@ placeholder:text-zinc-500
                         <td className="p-3">{member.nama}</td>
 
                         <td className="p-3">{member.discord_id}</td>
+                        <td className="p-3">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono">
+                              {visiblePasswords[member.id]
+                                ? member.password
+                                : "••••••••"}
+                            </span>
+
+                            <button
+                              onClick={() =>
+                                setVisiblePasswords((prev) => ({
+                                  ...prev,
+                                  [member.id]: !prev[member.id],
+                                }))
+                              }
+                              className="
+text-zinc-400
+hover:text-amber-300
+transition-all
+"
+                            >
+                              {visiblePasswords[member.id] ? (
+                                <EyeOff size={18} />
+                              ) : (
+                                <Eye size={18} />
+                              )}
+                            </button>
+                          </div>
+                        </td>
 
                         <td className="p-3">{member.paket}</td>
+
+                        <td className="p-3 text-emerald-400 font-bold">
+                          Rp {Number(member.harga || 0).toLocaleString("id-ID")}
+                        </td>
 
                         <td className="p-3">{member.start_date}</td>
 
@@ -1942,6 +2034,9 @@ placeholder:text-zinc-500
                                 setMemberName(member.nama);
                                 setDiscordId(member.discord_id);
                                 setMemberPackage(member.paket);
+                                setMemberPrice(
+                                  member.harga?.toString() || "127999",
+                                );
                                 setStartDate(member.start_date);
                                 setEndDate(member.end_date);
 
