@@ -9,6 +9,7 @@ import toast from "react-hot-toast";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import MiniTradingView from "@/components/MiniTradingView";
+import FinanceRow from "../../components/FinanceRow";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -95,6 +96,10 @@ export default function AdminPage() {
   const [memberPassword, setMemberPassword] = useState("");
 
   const [memberPrice, setMemberPrice] = useState("127999");
+
+  const [originalMemberPrice, setOriginalMemberPrice] = useState("");
+
+  const [financeSettings, setFinanceSettings] = useState<any>(null);
 
   const [showPassword, setShowPassword] = useState(false);
 
@@ -997,6 +1002,7 @@ ${watchlistNotes || "-"}
   }
 
   async function getMembers() {
+    // Ambil daftar member
     const { data, error } = await supabase
       .from("members")
       .select("*")
@@ -1008,6 +1014,18 @@ ${watchlistNotes || "-"}
     }
 
     setMembers(data || []);
+
+    // Ambil pengaturan keuangan
+    const { data: finance } = await supabase
+      .from("finance_settings")
+      .select("*")
+      .single();
+
+    if (finance) {
+      setFinanceSettings(finance);
+
+      setMemberPrice(finance.member_price.toString());
+    }
   }
 
   async function saveMember() {
@@ -1022,7 +1040,12 @@ ${watchlistNotes || "-"}
           password: memberPassword,
           role: "member",
           paket: memberPackage,
-          harga: Number(memberPrice),
+
+          harga:
+            memberPrice === ""
+              ? Number(originalMemberPrice)
+              : Number(memberPrice),
+
           start_date: startDate,
           end_date: endDate,
         })
@@ -1063,9 +1086,32 @@ ${watchlistNotes || "-"}
     setDiscordId("");
     setMemberPackage("Monthly");
     setMemberPassword("");
-    setMemberPrice("127999");
+
+    setOriginalMemberPrice("");
+
+    setShowPassword(false);
 
     setEditingMemberId(null);
+
+    setMemberPrice(financeSettings?.member_price?.toString() || "127999");
+  }
+
+  async function saveFinanceSettings() {
+    const { error } = await supabase
+      .from("finance_settings")
+      .update({
+        member_price: Number(memberPrice),
+      })
+      .eq("id", financeSettings.id);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    toast.success("Harga member berhasil diperbarui!");
+
+    getMembers();
   }
 
   // =========================
@@ -1094,6 +1140,12 @@ ${watchlistNotes || "-"}
 
     if (!member) return;
 
+    const confirmExtend = confirm(
+      `Perpanjang member ${member.nama} selama ${months} bulan?`,
+    );
+
+    if (!confirmExtend) return;
+
     const today = new Date();
 
     const currentEnd =
@@ -1103,10 +1155,19 @@ ${watchlistNotes || "-"}
 
     const newEndDate = currentEnd.toISOString().split("T")[0];
 
+    const packagePrice = financeSettings?.member_price || Number(memberPrice);
+
+    const currentPrice = Number(member.harga || 0);
+
+    const additionalPrice = packagePrice * months;
+
+    const newPrice = currentPrice + additionalPrice;
+
     const { error } = await supabase
       .from("members")
       .update({
         end_date: newEndDate,
+        harga: newPrice,
       })
       .eq("id", id);
 
@@ -1189,6 +1250,22 @@ ${watchlistNotes || "-"}
     return cocokSearch;
   });
 
+  const totalIncome = members
+    .filter((member) => new Date(member.end_date) > new Date())
+    .reduce((total, member) => {
+      return total + Number(member.harga || 0);
+    }, 0);
+
+  const kasAmount = totalIncome * 0.05;
+
+  const masIoo = totalIncome * 0.33;
+
+  const masGii = totalIncome * 0.26;
+
+  const masNero = totalIncome * 0.26;
+
+  const masAksa = totalIncome * 0.1;
+
   const filteredSignals = signals.filter((signal) => {
     const cocokSearch = signal.emiten
       ?.toLowerCase()
@@ -1202,6 +1279,10 @@ ${watchlistNotes || "-"}
 
     return cocokSearch && cocokStatus && cocokType;
   });
+
+  function formatRupiah(value: number) {
+    return `Rp ${Number(value || 0).toLocaleString("id-ID")}`;
+  }
 
   function formatDate(date: string) {
     if (!date) return "-";
@@ -1777,6 +1858,16 @@ placeholder:text-zinc-500
 
                         setStartDate("");
                         setEndDate("");
+
+                        setMemberPassword("");
+
+                        setShowPassword(false);
+
+                        setOriginalMemberPrice("");
+
+                        setMemberPrice(
+                          financeSettings?.member_price?.toString() || "127999",
+                        );
                       }}
                       className="
       bg-zinc-800
@@ -1810,33 +1901,125 @@ placeholder:text-zinc-500
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8 mb-6">
-              <div className="bg-zinc-900 border border-white/10 rounded-2xl p-4">
-                <p className="text-zinc-500 text-sm">Total Member</p>
-                <h3 className="text-2xl font-black text-white">
-                  {totalMembers}
-                </h3>
+            <div className="bg-gradient-to-b from-zinc-900 to-black border border-white/10 rounded-3xl p-6 mt-8 mb-6">
+              <h2 className="text-2xl font-black text-amber-300 mb-5">
+                ⚙️ Pengaturan Keuangan
+              </h2>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div className="bg-zinc-900 border border-white/10 rounded-2xl p-5">
+                  <p className="text-zinc-400 text-sm">Total Member</p>
+
+                  <h2 className="text-3xl font-black text-white mt-2">
+                    {totalMembers}
+                  </h2>
+                </div>
+
+                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-5">
+                  <p className="text-emerald-300 text-sm">Member Aktif</p>
+
+                  <h2 className="text-3xl font-black text-emerald-400 mt-2">
+                    {activeMembers}
+                  </h2>
+                </div>
+
+                <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-2xl p-5">
+                  <p className="text-cyan-300 text-sm">Harga Member</p>
+
+                  <h2 className="text-2xl font-black text-cyan-400 mt-2">
+                    {formatRupiah(Number(memberPrice))}
+                  </h2>
+                </div>
+
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-5">
+                  <p className="text-amber-300 text-sm">Total Pemasukan</p>
+
+                  <h2 className="text-2xl font-black text-amber-400 mt-2">
+                    {formatRupiah(totalIncome)}
+                  </h2>
+                </div>
               </div>
 
-              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4">
-                <p className="text-emerald-300 text-sm">Active</p>
-                <h3 className="text-2xl font-black text-emerald-400">
-                  {activeMembers}
-                </h3>
-              </div>
+              <div className="grid md:grid-cols-2 gap-4 items-end">
+                <div>
+                  <label className="block text-sm text-zinc-400 mb-2">
+                    Harga Member
+                  </label>
 
-              <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4">
-                <p className="text-amber-300 text-sm">Hampir Expired</p>
-                <h3 className="text-2xl font-black text-amber-400">
-                  {warningMembers}
-                </h3>
-              </div>
+                  <input
+                    type="number"
+                    value={memberPrice}
+                    onChange={(e) => setMemberPrice(e.target.value)}
+                    className="
+w-full
+bg-black
+border
+border-white/10
+rounded-2xl
+px-4
+py-4
+text-white
+"
+                  />
+                </div>
 
-              <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4">
-                <p className="text-rose-300 text-sm">Expired</p>
-                <h3 className="text-2xl font-black text-rose-400">
-                  {expiredMembers}
-                </h3>
+                <button
+                  onClick={saveFinanceSettings}
+                  className="
+bg-amber-300
+hover:bg-amber-200
+text-black
+font-black
+rounded-2xl
+py-4
+transition-all
+"
+                >
+                  💾 SIMPAN HARGA
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-8">
+              <h3 className="text-2xl font-black text-cyan-400 mb-5">
+                💼 Pembagian Dana
+              </h3>
+
+              <div className="space-y-4">
+                <FinanceRow
+                  title="Kas"
+                  percent={5}
+                  amount={kasAmount}
+                  color="bg-zinc-500"
+                />
+
+                <FinanceRow
+                  title="Mas Ioo"
+                  percent={33}
+                  amount={masIoo}
+                  color="bg-amber-400"
+                />
+
+                <FinanceRow
+                  title="Mas Gii"
+                  percent={26}
+                  amount={masGii}
+                  color="bg-cyan-400"
+                />
+
+                <FinanceRow
+                  title="Mas Nero"
+                  percent={26}
+                  amount={masNero}
+                  color="bg-emerald-400"
+                />
+
+                <FinanceRow
+                  title="Mas Aksa"
+                  percent={10}
+                  amount={masAksa}
+                  color="bg-violet-400"
+                />
               </div>
             </div>
 
@@ -1965,7 +2148,7 @@ transition-all
                         <td className="p-3">{member.paket}</td>
 
                         <td className="p-3 text-emerald-400 font-bold">
-                          Rp {Number(member.harga || 0).toLocaleString("id-ID")}
+                          {formatRupiah(member.harga)}
                         </td>
 
                         <td className="p-3">{member.start_date}</td>
@@ -2033,8 +2216,14 @@ transition-all
                               onClick={() => {
                                 setMemberName(member.nama);
                                 setDiscordId(member.discord_id);
+                                setMemberPassword(member.password || "");
+
+                                setShowPassword(false);
                                 setMemberPackage(member.paket);
                                 setMemberPrice(
+                                  member.harga?.toString() || "127999",
+                                );
+                                setOriginalMemberPrice(
                                   member.harga?.toString() || "127999",
                                 );
                                 setStartDate(member.start_date);
