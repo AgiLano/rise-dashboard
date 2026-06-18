@@ -2465,7 +2465,13 @@ font-bold
 
                         <td className="p-4">{signal.avg}</td>
 
-                        <td className="p-4 text-emerald-400 font-bold">
+                        <td
+                          className={`p-5 font-bold ${
+                            Number(signal.profit_percentage) >= 0
+                              ? "text-emerald-400"
+                              : "text-rose-400"
+                          }`}
+                        >
                           {signal.profit_percentage}%
                         </td>
 

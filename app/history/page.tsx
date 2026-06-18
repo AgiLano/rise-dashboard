@@ -740,7 +740,13 @@ export default function HistoryPage() {
                           {signal.tp_1 || "-"} | {signal.tp_2 || "-"} |{" "}
                           {signal.tp_3 || "-"}
                         </td>
-                        <td className="p-4 text-emerald-400 font-bold">
+                        <td
+                          className={`p-4 font-bold ${
+                            Number(signal.profit_percentage) >= 0
+                              ? "text-emerald-400"
+                              : "text-rose-400"
+                          }`}
+                        >
                           {signal.profit_percentage || 0}%
                         </td>
                         <td className="px-4 py-5">
@@ -910,7 +916,13 @@ export default function HistoryPage() {
                                     >
                                       {signal.status}
                                     </p>
-                                    <p className="text-xl font-black">
+                                    <p
+                                      className={`font-bold text-lg ${
+                                        Number(signal.profit_percentage) >= 0
+                                          ? "text-emerald-400"
+                                          : "text-rose-400"
+                                      }`}
+                                    >
                                       {signal.profit_percentage || 0}%
                                     </p>
                                   </div>
@@ -1038,7 +1050,13 @@ export default function HistoryPage() {
                   </div>
                   <div className="bg-zinc-800 rounded-xl p-2.5">
                     <p className="text-zinc-500 text-xs">PROFIT</p>
-                    <p className="font-bold text-lg text-emerald-400">
+                    <p
+                      className={`text-xl font-black ${
+                        Number(signal.profit_percentage) >= 0
+                          ? "text-emerald-400"
+                          : "text-rose-400"
+                      }`}
+                    >
                       {signal.profit_percentage || 0}%
                     </p>
                   </div>
