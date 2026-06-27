@@ -10,6 +10,15 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import MiniTradingView from "@/components/MiniTradingView";
 import FinanceRow from "../../components/FinanceRow";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+} from "recharts";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -94,6 +103,20 @@ export default function AdminPage() {
   const [memberPackage, setMemberPackage] = useState("Monthly");
 
   const [memberPassword, setMemberPassword] = useState("");
+  const [memberType, setMemberType] = useState("VIP");
+
+  useEffect(() => {
+    if (memberPackage === "Lifetime") {
+      setMemberPrice("0");
+      return;
+    }
+
+    if (memberType === "VIP") {
+      setMemberPrice("127999");
+    } else {
+      setMemberPrice("177999");
+    }
+  }, [memberType, memberPackage]);
 
   const [memberPrice, setMemberPrice] = useState("127999");
 
@@ -1023,8 +1046,6 @@ ${watchlistNotes || "-"}
 
     if (finance) {
       setFinanceSettings(finance);
-
-      setMemberPrice(finance.member_price.toString());
     }
   }
 
@@ -1039,6 +1060,7 @@ ${watchlistNotes || "-"}
           discord_id: discordId,
           password: memberPassword,
           role: "member",
+          member_type: memberType,
           paket: memberPackage,
 
           harga:
@@ -1059,6 +1081,7 @@ ${watchlistNotes || "-"}
           discord_id: discordId,
           password: memberPassword,
           role: "member",
+          member_type: memberType,
           paket: memberPackage,
           harga: Number(memberPrice),
           start_date: startDate,
@@ -1093,7 +1116,9 @@ ${watchlistNotes || "-"}
 
     setEditingMemberId(null);
 
-    setMemberPrice(financeSettings?.member_price?.toString() || "127999");
+    setMemberType("VIP");
+    setMemberPackage("Monthly");
+    setMemberPrice("127999");
   }
 
   async function saveFinanceSettings() {
@@ -1155,9 +1180,25 @@ ${watchlistNotes || "-"}
 
     const newEndDate = currentEnd.toISOString().split("T")[0];
 
-    const packagePrice = financeSettings?.member_price || Number(memberPrice);
+    let packagePrice = 0;
+
+    if (member.member_type === "VIP") {
+      packagePrice = 127999;
+    }
+
+    if (member.member_type === "VVIP") {
+      packagePrice = 177999;
+    }
+
+    if (member.paket === "Lifetime") {
+      packagePrice = 0;
+    }
 
     const currentPrice = Number(member.harga || 0);
+    if (member.paket === "Lifetime") {
+      toast("Member Lifetime tidak dikenakan biaya.");
+      return;
+    }
 
     const additionalPrice = packagePrice * months;
 
@@ -1198,6 +1239,39 @@ ${watchlistNotes || "-"}
     toast.success("Signal berhasil dihapus!");
   }
 
+  async function sendReminder() {
+    if (expiringMembers.length === 0) {
+      toast("Tidak ada member yang perlu diingatkan.");
+      return;
+    }
+
+    for (const member of expiringMembers) {
+      const daysLeft = Math.ceil(
+        (new Date(member.end_date).getTime() - new Date().getTime()) /
+          (1000 * 60 * 60 * 24),
+      );
+
+      const response = await fetch("/api/reminder-member", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nama: member.nama,
+          discordId: member.discord_id,
+          daysLeft,
+          endDate: member.end_date,
+        }),
+      });
+
+      const result = await response.json();
+
+      console.log(result);
+    }
+
+    toast.success(`Reminder diproses untuk ${expiringMembers.length} member.`);
+  }
+
   // =========================
   // FORMAT DATE
   // =========================
@@ -1216,14 +1290,16 @@ ${watchlistNotes || "-"}
     (member) => new Date(member.end_date) <= new Date(),
   ).length;
 
-  const warningMembers = members.filter((member) => {
+  const expiringMembers = members.filter((member) => {
     const daysLeft = Math.ceil(
       (new Date(member.end_date).getTime() - new Date().getTime()) /
         (1000 * 60 * 60 * 24),
     );
 
     return daysLeft > 0 && daysLeft <= 7;
-  }).length;
+  });
+
+  const warningMembers = expiringMembers.length;
 
   const filteredMembers = members.filter((member) => {
     const daysLeft = Math.ceil(
@@ -1265,6 +1341,36 @@ ${watchlistNotes || "-"}
   const masNero = totalIncome * 0.26;
 
   const masAksa = totalIncome * 0.1;
+
+  const monthlyIncome = Array.from({ length: 12 }, (_, index) => {
+    const month = index;
+
+    const income = members
+      .filter((member) => {
+        const date = new Date(member.start_date);
+
+        return date.getMonth() === month;
+      })
+      .reduce((total, member) => total + Number(member.harga || 0), 0);
+
+    return {
+      month: [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "Mei",
+        "Jun",
+        "Jul",
+        "Agu",
+        "Sep",
+        "Okt",
+        "Nov",
+        "Des",
+      ][month],
+      income,
+    };
+  });
 
   const filteredSignals = signals.filter((signal) => {
     const cocokSearch = signal.emiten
@@ -1835,6 +1941,14 @@ placeholder:text-zinc-500
                   className="bg-black border border-white/10 rounded-xl px-4 py-3 text-white"
                 />
                 <select
+                  value={memberType}
+                  onChange={(e) => setMemberType(e.target.value)}
+                  className="bg-black border border-white/10 rounded-xl px-4 py-3 text-white"
+                >
+                  <option value="VIP">👑 VIP</option>
+                  <option value="VVIP">💎 VVIP</option>
+                </select>
+                <select
                   value={memberPackage}
                   onChange={(e) => setMemberPackage(e.target.value)}
                   className="bg-black border border-white/10 rounded-xl px-4 py-3 text-white"
@@ -1906,7 +2020,7 @@ placeholder:text-zinc-500
                 ⚙️ Pengaturan Keuangan
               </h2>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
                 <div className="bg-zinc-900 border border-white/10 rounded-2xl p-5">
                   <p className="text-zinc-400 text-sm">Total Member</p>
 
@@ -1936,6 +2050,27 @@ placeholder:text-zinc-500
 
                   <h2 className="text-2xl font-black text-amber-400 mt-2">
                     {formatRupiah(totalIncome)}
+                  </h2>
+                </div>
+
+                <div
+                  className={`
+    rounded-2xl
+    p-5
+    border
+    transition-all
+    duration-1000
+    ${
+      warningMembers > 0
+        ? "bg-rose-500/10 border-rose-500 animate-pulse shadow-[0_0_25px_rgba(239,68,68,0.45)]"
+        : "bg-zinc-900 border-white/10"
+    }
+  `}
+                >
+                  <p className="text-rose-300 text-sm">Hampir Expired</p>
+
+                  <h2 className="text-3xl font-black text-rose-400 mt-2">
+                    {warningMembers}
                   </h2>
                 </div>
               </div>
@@ -1980,6 +2115,37 @@ transition-all
               </div>
             </div>
 
+            <div className="mt-8 mb-8 bg-gradient-to-b from-zinc-900 to-black border border-white/10 rounded-3xl p-6">
+              <h2 className="text-2xl font-black text-emerald-400 mb-6">
+                📊 Grafik Pemasukan Bulanan
+              </h2>
+
+              <div className="h-[320px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={monthlyIncome}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+                    <XAxis dataKey="month" stroke="#888" />
+                    <YAxis stroke="#888" />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#111",
+                        border: "1px solid #333",
+                      }}
+                      itemStyle={{ color: "#fff" }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="income"
+                      stroke="#10b981"
+                      strokeWidth={2}
+                      dot={{ stroke: "#10b981", strokeWidth: 2, r: 4 }}
+                      activeDot={{ r: 6, stroke: "#10b981" }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
             <div className="mt-8">
               <h3 className="text-2xl font-black text-cyan-400 mb-5">
                 💼 Pembagian Dana
@@ -2021,6 +2187,71 @@ transition-all
                   color="bg-violet-400"
                 />
               </div>
+            </div>
+
+            <div className="mt-8 mb-8 bg-zinc-900 border border-amber-400/20 rounded-3xl p-6">
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-2xl font-black text-amber-300">
+                  ⚠️ Member Hampir Expired
+                </h2>
+
+                <button
+                  onClick={sendReminder}
+                  className="
+      bg-amber-300
+      hover:bg-amber-200
+      text-black
+      font-bold
+      px-5
+      py-2
+      rounded-xl
+      transition-all
+    "
+                >
+                  🔔 Kirim Reminder
+                </button>
+              </div>
+
+              {expiringMembers.length === 0 ? (
+                <div className="text-emerald-400 font-semibold">
+                  ✅ Tidak ada member yang akan expired dalam 7 hari.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {expiringMembers.map((member) => {
+                    const daysLeft = Math.ceil(
+                      (new Date(member.end_date).getTime() -
+                        new Date().getTime()) /
+                        (1000 * 60 * 60 * 24),
+                    );
+
+                    return (
+                      <div
+                        key={member.id}
+                        className="flex items-center justify-between bg-black border border-white/10 rounded-2xl px-5 py-4"
+                      >
+                        <div>
+                          <p className="text-white font-bold">{member.nama}</p>
+
+                          <p className="text-zinc-500 text-sm">
+                            {member.discord_id}
+                          </p>
+                        </div>
+
+                        <div className="text-right">
+                          <p className="text-amber-400 font-black">
+                            {daysLeft} Hari Lagi
+                          </p>
+
+                          <p className="text-zinc-500 text-sm">
+                            Berakhir {formatDate(member.end_date)}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="mt-8">
@@ -2100,6 +2331,7 @@ transition-all
                       <th className="text-left p-3">Discord</th>
                       <th className="text-left p-3">Password</th>
                       <th className="text-left p-3">Paket</th>
+                      <th className="text-left p-3">Tipe</th>
                       <th className="text-left p-3">Harga</th>
                       <th className="text-left p-3">Mulai</th>
                       <th className="text-left p-3">Berakhir</th>
@@ -2145,10 +2377,34 @@ transition-all
                           </div>
                         </td>
 
-                        <td className="p-3">{member.paket}</td>
+                        <td className="p-3">
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-bold ${
+                              member.member_type === "VIP"
+                                ? "bg-sky-500/20 text-sky-400 border border-sky-500/30"
+                                : "bg-violet-500/20 text-violet-400 border border-violet-500/30"
+                            }`}
+                          >
+                            {member.member_type}
+                          </span>
+                        </td>
+
+                        <td className="p-3">
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-bold ${
+                              member.paket === "Lifetime"
+                                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                                : "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                            }`}
+                          >
+                            {member.paket}
+                          </span>
+                        </td>
 
                         <td className="p-3 text-emerald-400 font-bold">
-                          {formatRupiah(member.harga)}
+                          {Number(member.harga) === 0
+                            ? "-"
+                            : formatRupiah(member.harga)}
                         </td>
 
                         <td className="p-3">{member.start_date}</td>
