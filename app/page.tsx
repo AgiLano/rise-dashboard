@@ -212,13 +212,60 @@ export default function Home() {
         data: { session },
       } = await supabase.auth.getSession();
 
-      const member = localStorage.getItem("rise_member");
+      const memberString = localStorage.getItem("rise_member");
 
-      console.log("SESSION =", session);
-      console.log("MEMBER =", member);
-
-      if (!session && !member) {
+      if (!session && !memberString) {
         router.push("/login");
+        return;
+      }
+
+      // ======================
+      // CEK MEMBER
+      // ======================
+
+      if (memberString) {
+        const member = JSON.parse(memberString);
+
+        const { data: latestMember } = await supabase
+          .from("members")
+          .select("*")
+          .eq("id", member.id)
+          .maybeSingle();
+
+        if (!latestMember) {
+          localStorage.removeItem("rise_member");
+          router.push("/login");
+          return;
+        }
+
+        if (!latestMember.is_active) {
+          localStorage.removeItem("rise_member");
+
+          alert("Membership Anda telah dinonaktifkan.");
+
+          router.push("/login");
+
+          return;
+        }
+
+        const today = new Date();
+
+        const endDate = new Date(latestMember.end_date);
+
+        today.setHours(0, 0, 0, 0);
+        endDate.setHours(0, 0, 0, 0);
+
+        if (today > endDate) {
+          localStorage.removeItem("rise_member");
+
+          alert("Membership Anda telah berakhir.");
+
+          router.push("/login");
+
+          return;
+        }
+
+        setCheckingAuth(false);
         return;
       }
 

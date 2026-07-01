@@ -34,6 +34,10 @@ export async function POST(req: Request) {
       webhook = process.env.DISCORD_WEBHOOK_SWING;
     }
 
+    if (body.channel === "MEMBER_REMINDER") {
+      webhook = process.env.DISCORD_WEBHOOK_MEMBER_REMINDER;
+    }
+
     if (!webhook) {
       return NextResponse.json(
         {

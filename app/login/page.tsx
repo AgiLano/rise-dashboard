@@ -57,8 +57,17 @@ export default function LoginPage() {
         return;
       }
 
-      if (member.status !== "ACTIVE") {
-        alert("Membership tidak aktif");
+      if (!member.is_active) {
+        alert("Membership telah dinonaktifkan oleh Admin.");
+        return;
+      }
+
+      const today = new Date();
+
+      const expiredDate = new Date(member.end_date);
+
+      if (expiredDate < today) {
+        alert("Membership Anda telah berakhir.");
         return;
       }
 

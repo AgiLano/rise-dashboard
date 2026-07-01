@@ -1209,6 +1209,7 @@ ${watchlistNotes || "-"}
       .update({
         end_date: newEndDate,
         harga: newPrice,
+        is_active: true,
       })
       .eq("id", id);
 
@@ -1218,6 +1219,32 @@ ${watchlistNotes || "-"}
     }
 
     toast.success(`Membership diperpanjang ${months} bulan`);
+
+    getMembers();
+  }
+
+  async function toggleMemberStatus(id: number, active: boolean) {
+    const confirmAction = confirm(
+      active ? "Aktifkan member ini?" : "Nonaktifkan member ini?",
+    );
+
+    if (!confirmAction) return;
+
+    const { error } = await supabase
+      .from("members")
+      .update({
+        is_active: active,
+      })
+      .eq("id", id);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    toast.success(
+      active ? "Member berhasil diaktifkan." : "Member berhasil dinonaktifkan.",
+    );
 
     getMembers();
   }
@@ -1251,25 +1278,59 @@ ${watchlistNotes || "-"}
           (1000 * 60 * 60 * 24),
       );
 
-      const response = await fetch("/api/reminder-member", {
+      await fetch("/api/discord", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          nama: member.nama,
-          discordId: member.discord_id,
-          daysLeft,
-          endDate: member.end_date,
+          channel: "MEMBER_REMINDER",
+
+          embed: {
+            title: "⏰ MEMBERSHIP REMINDER",
+
+            color: 0xf59e0b,
+
+            fields: [
+              {
+                name: "👤 Nama",
+                value: member.nama,
+                inline: true,
+              },
+              {
+                name: "🏷 Member",
+                value: member.member_type,
+                inline: true,
+              },
+              {
+                name: "📦 Paket",
+                value: member.paket,
+                inline: true,
+              },
+              {
+                name: "📅 Berakhir",
+                value: member.end_date,
+                inline: true,
+              },
+              {
+                name: "⌛ Sisa",
+                value: `${daysLeft} hari`,
+                inline: true,
+              },
+              {
+                name: "Discord",
+                value: `<@${member.discord_id}>`,
+                inline: false,
+              },
+            ],
+          },
         }),
       });
-
-      const result = await response.json();
-
-      console.log(result);
     }
 
-    toast.success(`Reminder diproses untuk ${expiringMembers.length} member.`);
+    toast.success(
+      `Reminder berhasil dikirim ke ${expiringMembers.length} member.`,
+    );
   }
 
   // =========================
@@ -1283,11 +1344,11 @@ ${watchlistNotes || "-"}
   const totalMembers = members.length;
 
   const activeMembers = members.filter(
-    (member) => new Date(member.end_date) > new Date(),
+    (member) => member.is_active && new Date(member.end_date) > new Date(),
   ).length;
 
   const expiredMembers = members.filter(
-    (member) => new Date(member.end_date) <= new Date(),
+    (member) => !member.is_active || new Date(member.end_date) <= new Date(),
   ).length;
 
   const expiringMembers = members.filter((member) => {
@@ -1312,15 +1373,15 @@ ${watchlistNotes || "-"}
       member.discord_id?.toLowerCase().includes(memberSearch.toLowerCase());
 
     if (memberFilter === "ACTIVE") {
-      return daysLeft > 7 && cocokSearch;
+      return member.is_active && daysLeft > 7 && cocokSearch;
     }
 
     if (memberFilter === "WARNING") {
-      return daysLeft > 0 && daysLeft <= 7 && cocokSearch;
+      return member.is_active && daysLeft > 0 && daysLeft <= 7 && cocokSearch;
     }
 
     if (memberFilter === "EXPIRED") {
-      return daysLeft <= 0 && cocokSearch;
+      return (!member.is_active || daysLeft <= 0) && cocokSearch;
     }
 
     return cocokSearch;
@@ -2443,6 +2504,14 @@ transition-all
                                 (1000 * 60 * 60 * 24),
                             );
 
+                            if (!member.is_active) {
+                              return (
+                                <span className="px-3 py-1 rounded-full bg-zinc-700 text-white font-bold text-xs">
+                                  ⚫ NONAKTIF
+                                </span>
+                              );
+                            }
+
                             if (daysLeft <= 0) {
                               return (
                                 <span className="px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 font-bold text-xs">
@@ -2561,6 +2630,20 @@ font-bold
                             >
                               +12B
                             </button>
+
+                            <button
+                              onClick={() =>
+                                toggleMemberStatus(member.id, !member.is_active)
+                              }
+                              className={`px-4 py-2 rounded-xl font-bold ${
+                                member.is_active
+                                  ? "bg-zinc-700 hover:bg-zinc-600 text-white"
+                                  : "bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-300"
+                              }`}
+                            >
+                              {member.is_active ? "Nonaktifkan" : "Aktifkan"}
+                            </button>
+
                             <button
                               onClick={() => deleteMember(member.id)}
                               className="bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-300 px-4 py-2 rounded-xl font-bold"
