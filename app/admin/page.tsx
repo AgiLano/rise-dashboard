@@ -97,7 +97,8 @@ export default function AdminPage() {
   const [mode, setMode] = useState<"SIGNAL" | "WATCHLIST" | "MEMBER">("SIGNAL");
 
   const [memberName, setMemberName] = useState("");
-  const [discordId, setDiscordId] = useState("");
+  const [discordUsername, setDiscordUsername] = useState("");
+  const [discordUserId, setDiscordUserId] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [memberPackage, setMemberPackage] = useState("Monthly");
@@ -1057,7 +1058,12 @@ ${watchlistNotes || "-"}
         .from("members")
         .update({
           nama: memberName,
-          discord_id: discordId,
+          discord_username: discordUsername,
+          discord_user_id: discordUserId,
+
+          // sementara tetap isi kolom lama
+          discord_id: discordUserId,
+
           password: memberPassword,
           role: "member",
           member_type: memberType,
@@ -1078,7 +1084,13 @@ ${watchlistNotes || "-"}
       const response = await supabase.from("members").insert([
         {
           nama: memberName,
-          discord_id: discordId,
+
+          discord_username: discordUsername,
+          discord_user_id: discordUserId,
+
+          // sementara tetap isi kolom lama
+          discord_id: discordUserId,
+
           password: memberPassword,
           role: "member",
           member_type: memberType,
@@ -1097,6 +1109,32 @@ ${watchlistNotes || "-"}
       return;
     }
 
+    // Tambahkan role Discord otomatis (hanya saat member baru)
+    if (!editingMemberId) {
+      try {
+        const res = await fetch("/api/discord/add-role", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            discordId: discordUserId,
+            memberType,
+            action: "add",
+          }),
+        });
+
+        const result = await res.json();
+
+        if (!result.success) {
+          console.error("Discord Role Error:", result.error);
+          toast.error("Member tersimpan, tetapi role Discord gagal diberikan.");
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
     toast.success(
       editingMemberId
         ? "Member berhasil diupdate!"
@@ -1106,7 +1144,10 @@ ${watchlistNotes || "-"}
     getMembers();
 
     setMemberName("");
-    setDiscordId("");
+
+    setDiscordUsername("");
+    setDiscordUserId("");
+
     setMemberPackage("Monthly");
     setMemberPassword("");
 
@@ -1237,6 +1278,24 @@ ${watchlistNotes || "-"}
       })
       .eq("id", id);
 
+    const member = members.find((m) => m.id === id);
+
+    if (member) {
+      await fetch(
+        active ? "/api/discord/add-role" : "/api/discord/remove-role",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            discordId: member.discord_user_id,
+            memberType: member.member_type,
+          }),
+        },
+      );
+    }
+
     if (error) {
       toast.error(error.message);
       return;
@@ -1319,7 +1378,7 @@ ${watchlistNotes || "-"}
               },
               {
                 name: "Discord",
-                value: `<@${member.discord_id}>`,
+                value: `<@${member.discord_user_id ?? member.discord_id}>`,
                 inline: false,
               },
             ],
@@ -1368,9 +1427,13 @@ ${watchlistNotes || "-"}
         (1000 * 60 * 60 * 24),
     );
 
+    const keyword = memberSearch.toLowerCase();
+
     const cocokSearch =
-      member.nama?.toLowerCase().includes(memberSearch.toLowerCase()) ||
-      member.discord_id?.toLowerCase().includes(memberSearch.toLowerCase());
+      member.nama?.toLowerCase().includes(keyword) ||
+      member.discord_username?.toLowerCase().includes(keyword) ||
+      member.discord_user_id?.toLowerCase().includes(keyword) ||
+      member.discord_id?.toLowerCase().includes(keyword);
 
     if (memberFilter === "ACTIVE") {
       return member.is_active && daysLeft > 7 && cocokSearch;
@@ -1919,9 +1982,17 @@ ${watchlistNotes || "-"}
 
                 <input
                   type="text"
-                  placeholder="Discord ID / Username"
-                  value={discordId}
-                  onChange={(e) => setDiscordId(e.target.value)}
+                  placeholder="Discord Username"
+                  value={discordUsername}
+                  onChange={(e) => setDiscordUsername(e.target.value)}
+                  className="bg-black border border-white/10 rounded-xl px-4 py-3 text-white"
+                />
+
+                <input
+                  type="text"
+                  placeholder="Discord User ID"
+                  value={discordUserId}
+                  onChange={(e) => setDiscordUserId(e.target.value)}
                   className="bg-black border border-white/10 rounded-xl px-4 py-3 text-white"
                 />
 
@@ -2027,7 +2098,8 @@ placeholder:text-zinc-500
                         setEditingMemberId(null);
 
                         setMemberName("");
-                        setDiscordId("");
+                        setDiscordUsername("");
+                        setDiscordUserId("");
 
                         setMemberPackage("Monthly");
 
@@ -2389,7 +2461,8 @@ transition-all
                   <thead>
                     <tr className="border-b border-white/10">
                       <th className="text-left p-3">Nama</th>
-                      <th className="text-left p-3">Discord</th>
+                      <th className="text-left p-3">Discord Username</th>
+                      <th className="text-left p-3">Discord User ID</th>
                       <th className="text-left p-3">Password</th>
                       <th className="text-left p-3">Paket</th>
                       <th className="text-left p-3">Tipe</th>
@@ -2407,7 +2480,11 @@ transition-all
                       <tr key={member.id} className="border-b border-white/5">
                         <td className="p-3">{member.nama}</td>
 
-                        <td className="p-3">{member.discord_id}</td>
+                        <td className="p-3">{member.discord_username}</td>
+
+                        <td className="p-3 font-mono text-cyan-400">
+                          {member.discord_user_id}
+                        </td>
                         <td className="p-3">
                           <div className="flex items-center gap-2">
                             <span className="font-mono">
@@ -2441,24 +2518,24 @@ transition-all
                         <td className="p-3">
                           <span
                             className={`px-3 py-1 rounded-full text-xs font-bold ${
-                              member.member_type === "VIP"
-                                ? "bg-sky-500/20 text-sky-400 border border-sky-500/30"
-                                : "bg-violet-500/20 text-violet-400 border border-violet-500/30"
-                            }`}
-                          >
-                            {member.member_type}
-                          </span>
-                        </td>
-
-                        <td className="p-3">
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-bold ${
                               member.paket === "Lifetime"
                                 ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
                                 : "bg-amber-500/20 text-amber-400 border border-amber-500/30"
                             }`}
                           >
                             {member.paket}
+                          </span>
+                        </td>
+
+                        <td className="p-3">
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-bold ${
+                              member.member_type === "VIP"
+                                ? "bg-sky-500/20 text-sky-400 border border-sky-500/30"
+                                : "bg-violet-500/20 text-violet-400 border border-violet-500/30"
+                            }`}
+                          >
+                            {member.member_type}
                           </span>
                         </td>
 
@@ -2540,7 +2617,15 @@ transition-all
                             <button
                               onClick={() => {
                                 setMemberName(member.nama);
-                                setDiscordId(member.discord_id);
+                                setDiscordUsername(
+                                  member.discord_username ?? "",
+                                );
+
+                                setDiscordUserId(
+                                  member.discord_user_id ??
+                                    member.discord_id ??
+                                    "",
+                                );
                                 setMemberPassword(member.password || "");
 
                                 setShowPassword(false);

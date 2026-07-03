@@ -44,7 +44,7 @@ export default function LoginPage() {
       const { data: member, error: memberError } = await supabase
         .from("members")
         .select("*")
-        .eq("discord_id", username)
+        .eq("discord_username", username)
         .single();
 
       if (memberError || !member) {
@@ -63,8 +63,10 @@ export default function LoginPage() {
       }
 
       const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
       const expiredDate = new Date(member.end_date);
+      expiredDate.setHours(0, 0, 0, 0);
 
       if (expiredDate < today) {
         alert("Membership Anda telah berakhir.");
@@ -76,8 +78,13 @@ export default function LoginPage() {
         JSON.stringify({
           id: member.id,
           nama: member.nama,
-          discord_id: member.discord_id,
+
+          discord_username: member.discord_username,
+          discord_user_id: member.discord_user_id,
+
           paket: member.paket,
+          member_type: member.member_type,
+
           end_date: member.end_date,
         }),
       );
@@ -113,7 +120,7 @@ export default function LoginPage() {
         <form onSubmit={handleLogin} className="space-y-5">
           <input
             type="text"
-            placeholder="Username / Discord ID"
+            placeholder="Discord Username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             className="w-full bg-black border border-zinc-700 rounded-2xl px-5 py-4 text-white outline-none focus:border-yellow-400 transition-all"
