@@ -273,6 +273,12 @@ export default function Home() {
     }
 
     checkAccess();
+
+    const interval = setInterval(() => {
+      checkAccess();
+    }, 60000);
+
+    return () => clearInterval(interval);
   }, [router]);
 
   useEffect(() => {
