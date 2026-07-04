@@ -1,0 +1,19 @@
+name: Member Reminder
+
+on:
+  schedule:
+    # 08:00 WIB = 01:00 UTC
+    - cron: "0 1 * * *"
+
+  workflow_dispatch:
+
+jobs:
+  member-reminder:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Call Member Reminder API
+        run: |
+          curl -X GET \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://ritelsociety-dashboard.vercel.app/api/cron/member-reminder
