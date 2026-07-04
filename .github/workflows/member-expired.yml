@@ -1,0 +1,19 @@
+name: Member Expired Checker
+
+on:
+  schedule:
+    # 07:45 WIB = 00:45 UTC
+    - cron: "45 0 * * 1-5"
+
+  workflow_dispatch:
+
+jobs:
+  member-expired:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Call Member Expired API
+        run: |
+          curl -X GET \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://ritelsociety-dashboard.vercel.app/api/cron/member-expired
