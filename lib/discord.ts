@@ -64,3 +64,21 @@ export async function sendDirectMessage(
 
   return await response.json();
 }
+
+export async function sendBotLog(message: string) {
+  const webhook = process.env.DISCORD_LOG_WEBHOOK;
+
+  if (!webhook) {
+    throw new Error("DISCORD_LOG_WEBHOOK tidak ditemukan");
+  }
+
+  await fetch(webhook, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      content: message,
+    }),
+  });
+}

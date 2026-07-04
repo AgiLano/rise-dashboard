@@ -19,6 +19,7 @@ import {
   CartesianGrid,
   Tooltip,
 } from "recharts";
+import { sendBotLog } from "@/lib/discord";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -1129,6 +1130,47 @@ ${watchlistNotes || "-"}
         if (!result.success) {
           console.error("Discord Role Error:", result.error);
           toast.error("Member tersimpan, tetapi role Discord gagal diberikan.");
+        } else {
+          // =========================
+          // WELCOME DM
+          // =========================
+
+          await fetch("/api/discord/welcome", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              discordUserId,
+
+              nama: memberName,
+
+              username: discordUsername,
+
+              password: memberPassword,
+
+              memberType,
+
+              endDate,
+            }),
+          });
+          await fetch("/api/discord/log", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              message: `🟢 MEMBER BARU
+
+👤 ${memberName}
+📦 ${memberType}
+
+✅ Role Discord berhasil diberikan
+✅ Welcome DM berhasil dikirim
+
+🕒 ${new Date().toLocaleString("id-ID")}`,
+            }),
+          });
         }
       } catch (err) {
         console.error(err);
@@ -1257,6 +1299,30 @@ ${watchlistNotes || "-"}
     if (error) {
       toast.error(error.message);
       return;
+    }
+
+    // =========================
+    // RENEWAL DM
+    // =========================
+
+    try {
+      await fetch("/api/discord/renewal", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          discordUserId: member.discord_user_id,
+
+          nama: member.nama,
+
+          memberType: member.member_type,
+
+          endDate: newEndDate,
+        }),
+      });
+    } catch (err) {
+      console.error(err);
     }
 
     toast.success(`Membership diperpanjang ${months} bulan`);
