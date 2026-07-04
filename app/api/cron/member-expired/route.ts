@@ -1,7 +1,21 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = req.headers.get("authorization");
+
+  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Unauthorized",
+      },
+      {
+        status: 401,
+      },
+    );
+  }
+
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -17,6 +31,8 @@ export async function GET() {
 
     let totalExpired = 0;
 
+    const baseUrl = new URL(req.url).origin;
+
     for (const member of members ?? []) {
       const endDate = new Date(member.end_date);
       endDate.setHours(0, 0, 0, 0);
@@ -25,17 +41,22 @@ export async function GET() {
         totalExpired++;
 
         // Nonaktifkan member
-        await supabaseAdmin
+        const { error: updateError } = await supabaseAdmin
           .from("members")
           .update({
             is_active: false,
           })
           .eq("id", member.id);
 
+        if (updateError) {
+          console.error(updateError);
+          continue;
+        }
+
         // Cabut Role Discord
         try {
-          await fetch(
-            `${process.env.NEXT_PUBLIC_SITE_URL}/api/discord/remove-role`,
+          const removeRoleResponse = await fetch(
+            `${baseUrl}/api/discord/remove-role`,
             {
               method: "POST",
               headers: {
@@ -47,6 +68,13 @@ export async function GET() {
               }),
             },
           );
+
+          if (!removeRoleResponse.ok) {
+            console.error(
+              "Remove role gagal:",
+              await removeRoleResponse.text(),
+            );
+          }
         } catch (err) {
           console.error("Remove Role Error:", err);
         }
