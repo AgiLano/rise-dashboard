@@ -1293,6 +1293,12 @@ ${watchlistNotes || "-"}
         end_date: newEndDate,
         harga: newPrice,
         is_active: true,
+
+        reminder_7_sent: false,
+        reminder_3_sent: false,
+        reminder_1_sent: false,
+
+        last_reminder_at: null,
       })
       .eq("id", id);
 
@@ -1313,14 +1319,35 @@ ${watchlistNotes || "-"}
         },
         body: JSON.stringify({
           discordUserId: member.discord_user_id,
-
           nama: member.nama,
-
           memberType: member.member_type,
-
           endDate: newEndDate,
         }),
       });
+
+      // =========================
+      // BOT LOG RENEWAL
+      // =========================
+      await sendBotLog(`🔄 MEMBERSHIP DIPERPANJANG
+
+━━━━━━━━━━━━━━━━━━
+
+👤 Member
+${member.nama}
+
+📦 Membership
+${member.member_type}
+
+📅 Berlaku Sampai
+${newEndDate}
+
+💰 Total Harga
+Rp ${newPrice.toLocaleString("id-ID")}
+
+✅ Renewal berhasil.
+
+🕒 ${new Date().toLocaleString("id-ID")}
+`);
     } catch (err) {
       console.error(err);
     }

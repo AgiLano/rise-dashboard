@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { sendDirectMessage } from "@/lib/discord";
+import { sendDirectMessage, sendBotLog } from "@/lib/discord";
 
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization");
@@ -81,6 +81,27 @@ Terima kasih telah menjadi bagian dari RISE Ritel Society 🚀`;
 
         await sendDirectMessage(member.discord_user_id, message);
 
+        await sendBotLog(`⏰ REMINDER MEMBERSHIP
+
+━━━━━━━━━━━━━━━━━━
+
+👤 Member
+${member.nama}
+
+📦 Membership
+${member.member_type}
+
+📅 Berakhir
+${member.end_date}
+
+⏳ Sisa Hari
+${diffDays} Hari
+
+📩 Reminder berhasil dikirim melalui DM.
+
+🕒 ${new Date().toLocaleString("id-ID")}
+`);
+
         const updateData: any = {
           last_reminder_at: new Date().toISOString(),
         };
@@ -101,6 +122,30 @@ Terima kasih telah menjadi bagian dari RISE Ritel Society 🚀`;
         sent++;
       } catch (err) {
         console.error(err);
+
+        try {
+          await sendBotLog(`❌ REMINDER GAGAL
+
+━━━━━━━━━━━━━━━━━━
+
+👤 Member
+${member.nama}
+
+📦 Membership
+${member.member_type}
+
+📅 Berakhir
+${member.end_date}
+
+⚠️ Gagal mengirim Reminder DM.
+
+Error:
+${String(err)}
+
+🕒 ${new Date().toLocaleString("id-ID")}
+`);
+        } catch {}
+
         failed++;
       }
     }
