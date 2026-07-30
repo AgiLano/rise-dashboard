@@ -21,6 +21,8 @@ export async function GET(req: NextRequest) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    console.log("TODAY =", today);
+
     const { data: members, error } = await supabaseAdmin
       .from("members")
       .select("*")
@@ -37,6 +39,10 @@ export async function GET(req: NextRequest) {
     for (const member of members ?? []) {
       const endDate = new Date(member.end_date);
       endDate.setHours(0, 0, 0, 0);
+
+      console.log("MEMBER =", member.nama);
+      console.log("END DATE =", endDate);
+      console.log("IS ACTIVE =", member.is_active);
 
       if (endDate < today) {
         totalExpired++;
