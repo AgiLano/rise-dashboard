@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
       console.log("END DATE =", endDate);
       console.log("IS ACTIVE =", member.is_active);
 
-      if (endDate < today) {
+      if (endDate <= today) {
         totalExpired++;
 
         // Nonaktifkan member
