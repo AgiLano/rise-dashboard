@@ -95,7 +95,9 @@ export default function AdminPage() {
 
   const [sendDiscord, setSendDiscord] = useState(true);
 
-  const [mode, setMode] = useState<"SIGNAL" | "WATCHLIST" | "MEMBER">("SIGNAL");
+  const [mode, setMode] = useState<
+    "SIGNAL" | "WATCHLIST" | "MEMBER" | "FINANCE"
+  >("SIGNAL");
 
   const [memberName, setMemberName] = useState("");
   const [discordUsername, setDiscordUsername] = useState("");
@@ -122,9 +124,17 @@ export default function AdminPage() {
 
   const [memberPrice, setMemberPrice] = useState("127999");
 
+  const [expenseDate, setExpenseDate] = useState("");
+  const [expenseName, setExpenseName] = useState("");
+  const [expenseCategory, setExpenseCategory] = useState("");
+  const [expenseAmount, setExpenseAmount] = useState("");
+  const [expenseNote, setExpenseNote] = useState("");
+
   const [originalMemberPrice, setOriginalMemberPrice] = useState("");
 
   const [financeSettings, setFinanceSettings] = useState<any>(null);
+
+  const [financeTransactions, setFinanceTransactions] = useState<any[]>([]);
 
   const [showPassword, setShowPassword] = useState(false);
 
@@ -1040,6 +1050,24 @@ ${watchlistNotes || "-"}
 
     setMembers(data || []);
 
+    console.table(
+      data?.map((m) => ({
+        nama: m.nama,
+        harga: m.harga,
+      })),
+    );
+
+    const { data: transactions } = await supabase
+      .from("finance_transactions")
+      .select("*")
+      .order("transaction_date", { ascending: false });
+
+    console.log("TRANSACTIONS =", transactions);
+
+    console.table(transactions);
+
+    setFinanceTransactions(transactions || []);
+
     // Ambil pengaturan keuangan
     const { data: finance } = await supabase
       .from("finance_settings")
@@ -1071,7 +1099,7 @@ ${watchlistNotes || "-"}
           paket: memberPackage,
 
           harga:
-            memberPrice === ""
+            originalMemberPrice !== ""
               ? Number(originalMemberPrice)
               : Number(memberPrice),
 
@@ -1109,7 +1137,22 @@ ${watchlistNotes || "-"}
       toast.error(error.message);
       return;
     }
+    // =========================
+    // FINANCE TRANSACTION
+    // =========================
 
+    if (!editingMemberId) {
+      await supabase.from("finance_transactions").insert([
+        {
+          transaction_date: startDate,
+          transaction_type: "INCOME",
+          member_name: memberName,
+          description: `Member Baru (${memberType})`,
+          category: "MEMBERSHIP",
+          amount: Number(memberPrice),
+        },
+      ]);
+    }
     // Tambahkan role Discord otomatis (hanya saat member baru)
     if (!editingMemberId) {
       try {
@@ -1183,7 +1226,7 @@ ${watchlistNotes || "-"}
         : "Member berhasil ditambahkan!",
     );
 
-    getMembers();
+    await getMembers();
 
     setMemberName("");
 
@@ -1222,6 +1265,38 @@ ${watchlistNotes || "-"}
     getMembers();
   }
 
+  async function saveExpense() {
+    if (!expenseDate || !expenseName || !expenseCategory || !expenseAmount) {
+      toast.error("Lengkapi semua data terlebih dahulu!");
+      return;
+    }
+
+    const { error } = await supabase.from("finance_transactions").insert([
+      {
+        transaction_date: expenseDate,
+        transaction_type: "EXPENSE",
+        member_name: null,
+        description: expenseName,
+        category: expenseCategory,
+        amount: Number(expenseAmount),
+      },
+    ]);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    toast.success("Pengeluaran berhasil disimpan!");
+
+    await getMembers();
+
+    setExpenseDate("");
+    setExpenseName("");
+    setExpenseCategory("");
+    setExpenseAmount("");
+    setExpenseNote("");
+  }
   // =========================
   // DELETE SIGNAL
   // =========================
@@ -1230,6 +1305,21 @@ ${watchlistNotes || "-"}
     const confirmDelete = confirm("Yakin ingin menghapus member ini?");
 
     if (!confirmDelete) return;
+
+    const member = members.find((m) => m.id === id);
+
+    if (member) {
+      await supabase.from("finance_transactions").insert([
+        {
+          transaction_date: new Date().toISOString().split("T")[0],
+          transaction_type: "INFO",
+          member_name: member.nama,
+          description: "Member Dihapus",
+          category: "SYSTEM",
+          amount: 0,
+        },
+      ]);
+    }
 
     const { error } = await supabase.from("members").delete().eq("id", id);
 
@@ -1306,7 +1396,20 @@ ${watchlistNotes || "-"}
       toast.error(error.message);
       return;
     }
+    // =========================
+    // FINANCE TRANSACTION
+    // =========================
 
+    await supabase.from("finance_transactions").insert([
+      {
+        transaction_date: new Date().toISOString().split("T")[0],
+        transaction_type: "INCOME",
+        member_name: member.nama,
+        description: `Renew ${months} Bulan (${member.member_type})`,
+        category: "MEMBERSHIP",
+        amount: additionalPrice,
+      },
+    ]);
     // =========================
     // RENEWAL DM
     // =========================
@@ -1543,11 +1646,15 @@ Rp ${newPrice.toLocaleString("id-ID")}
     return cocokSearch;
   });
 
-  const totalIncome = members
-    .filter((member) => new Date(member.end_date) > new Date())
-    .reduce((total, member) => {
-      return total + Number(member.harga || 0);
-    }, 0);
+  const totalIncome = financeTransactions
+    .filter((t) => t.transaction_type === "INCOME")
+    .reduce((total, t) => total + Number(t.amount || 0), 0);
+
+  const totalExpense = financeTransactions
+    .filter((t) => t.transaction_type === "EXPENSE")
+    .reduce((total, t) => total + Number(t.amount || 0), 0);
+
+  const netProfit = totalIncome - totalExpense;
 
   const kasAmount = totalIncome * 0.05;
 
@@ -1560,15 +1667,15 @@ Rp ${newPrice.toLocaleString("id-ID")}
   const masAksa = totalIncome * 0.1;
 
   const monthlyIncome = Array.from({ length: 12 }, (_, index) => {
-    const month = index;
+    const income = financeTransactions
+      .filter((t) => {
+        if (t.transaction_type !== "INCOME") return false;
 
-    const income = members
-      .filter((member) => {
-        const date = new Date(member.start_date);
+        const date = new Date(t.transaction_date);
 
-        return date.getMonth() === month;
+        return date.getMonth() === index;
       })
-      .reduce((total, member) => total + Number(member.harga || 0), 0);
+      .reduce((total, t) => total + Number(t.amount || 0), 0);
 
     return {
       month: [
@@ -1584,7 +1691,7 @@ Rp ${newPrice.toLocaleString("id-ID")}
         "Okt",
         "Nov",
         "Des",
-      ][month],
+      ][index],
       income,
     };
   });
@@ -1702,6 +1809,17 @@ Rp ${newPrice.toLocaleString("id-ID")}
             }`}
           >
             👥 MEMBER
+          </button>
+
+          <button
+            onClick={() => setMode("FINANCE")}
+            className={`px-6 py-3 rounded-2xl font-bold transition-all ${
+              mode === "FINANCE"
+                ? "bg-emerald-500 text-white"
+                : "bg-zinc-900 text-zinc-400 border border-white/5"
+            }`}
+          >
+            💰 KEUANGAN
           </button>
         </div>
 
@@ -2839,8 +2957,140 @@ font-bold
           </>
         )}
 
+        {mode === "FINANCE" && (
+          <div className="bg-gradient-to-b from-zinc-900 to-black border border-white/10 rounded-3xl p-8">
+            <h2 className="text-3xl font-black text-emerald-400 mb-6">
+              💰 KEUANGAN
+            </h2>
+
+            <div className="grid md:grid-cols-3 gap-4 mb-8">
+              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-5">
+                <p className="text-emerald-300 text-sm">Total Income</p>
+
+                <h2 className="text-2xl font-black text-emerald-400 mt-2">
+                  {formatRupiah(totalIncome)}
+                </h2>
+              </div>
+
+              <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-5">
+                <p className="text-rose-300 text-sm">Total Expense</p>
+
+                <h2 className="text-2xl font-black text-rose-400 mt-2">
+                  {formatRupiah(totalExpense)}
+                </h2>
+              </div>
+
+              <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-2xl p-5">
+                <p className="text-cyan-300 text-sm">Net Profit</p>
+
+                <h2 className="text-2xl font-black text-cyan-400 mt-2">
+                  {formatRupiah(netProfit)}
+                </h2>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <input
+                type="date"
+                value={expenseDate}
+                onChange={(e) => setExpenseDate(e.target.value)}
+                className="bg-black border border-white/10 rounded-xl px-4 py-3 text-white"
+              />
+
+              <input
+                type="text"
+                placeholder="Nama Pengeluaran"
+                value={expenseName}
+                onChange={(e) => setExpenseName(e.target.value)}
+                className="bg-black border border-white/10 rounded-xl px-4 py-3 text-white"
+              />
+
+              <input
+                type="text"
+                placeholder="Kategori"
+                value={expenseCategory}
+                onChange={(e) => setExpenseCategory(e.target.value)}
+                className="bg-black border border-white/10 rounded-xl px-4 py-3 text-white"
+              />
+
+              <input
+                type="number"
+                placeholder="Nominal"
+                value={expenseAmount}
+                onChange={(e) => setExpenseAmount(e.target.value)}
+                className="bg-black border border-white/10 rounded-xl px-4 py-3 text-white"
+              />
+            </div>
+
+            <textarea
+              placeholder="Catatan"
+              value={expenseNote}
+              onChange={(e) => setExpenseNote(e.target.value)}
+              className="w-full mt-4 bg-black border border-white/10 rounded-xl px-4 py-3 text-white"
+              rows={4}
+            />
+
+            <button
+              onClick={saveExpense}
+              className="mt-6 bg-emerald-500 hover:bg-emerald-400 text-black font-bold px-6 py-3 rounded-xl"
+            >
+              💾 SIMPAN PENGELUARAN
+            </button>
+
+            <div className="mt-10">
+              <h3 className="text-2xl font-black text-amber-300 mb-5">
+                📒 Riwayat Transaksi
+              </h3>
+
+              <div className="overflow-x-auto rounded-2xl border border-white/10">
+                <table className="w-full">
+                  <thead className="bg-zinc-900">
+                    <tr>
+                      <th className="p-3 text-left">Tanggal</th>
+                      <th className="p-3 text-left">Tipe</th>
+                      <th className="p-3 text-left">Deskripsi</th>
+                      <th className="p-3 text-left">Kategori</th>
+                      <th className="p-3 text-left">Nominal</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {financeTransactions.map((trx) => (
+                      <tr key={trx.id} className="border-t border-white/5">
+                        <td className="p-3">
+                          {formatDate(trx.transaction_date)}
+                        </td>
+
+                        <td className="p-3">
+                          <span
+                            className={
+                              trx.transaction_type === "INCOME"
+                                ? "text-emerald-400 font-bold"
+                                : "text-rose-400 font-bold"
+                            }
+                          >
+                            {trx.transaction_type}
+                          </span>
+                        </td>
+
+                        <td className="p-3">{trx.description}</td>
+
+                        <td className="p-3">{trx.category}</td>
+
+                        <td className="p-3 font-bold">
+                          {formatRupiah(trx.amount)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* BUTTON */}
-        {mode !== "MEMBER" && (
+        {(mode === "SIGNAL" || mode === "WATCHLIST") && (
           <div className="mt-8 mb-10 flex flex-col md:flex-row gap-4 max-w-4xl">
             {editingId && (
               <button
