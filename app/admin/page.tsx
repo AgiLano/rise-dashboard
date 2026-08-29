@@ -2,6 +2,7 @@
 
 import Navbar from "@/components/Navbar";
 import { useEffect, useState, useRef } from "react";
+import jsPDF from "jspdf";
 import { Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
@@ -135,6 +136,8 @@ export default function AdminPage() {
   const [financeSettings, setFinanceSettings] = useState<any>(null);
 
   const [financeTransactions, setFinanceTransactions] = useState<any[]>([]);
+
+  const [financePayouts, setFinancePayouts] = useState<any[]>([]);
 
   const [showPassword, setShowPassword] = useState(false);
 
@@ -1077,6 +1080,20 @@ ${watchlistNotes || "-"}
     if (finance) {
       setFinanceSettings(finance);
     }
+    // Ambil data payout keuangan
+    const { data: payouts, error: payoutError } = await supabase
+      .from("finance_payouts")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (payoutError) {
+      console.error("Gagal mengambil finance_payouts:", payoutError);
+      return;
+    }
+
+    setFinancePayouts(payouts || []);
+    console.log("FINANCE PAYOUTS =", payouts);
+    console.table(payouts);
   }
 
   async function saveMember() {
@@ -1247,6 +1264,91 @@ ${watchlistNotes || "-"}
     setMemberPrice("127999");
   }
 
+  function exportPayoutPDF() {
+    const doc = new jsPDF();
+
+    const today = new Date().toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+
+    doc.setFontSize(22);
+    doc.setFont("helvetica", "bold");
+    doc.text("RISE", 20, 20);
+
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("SLIP PEMBAGIAN DANA", 20, 30);
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Tanggal: ${today}`, 20, 40);
+
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text(
+      `Total Dana Dibagikan: ${formatRupiah(distributableFund)}`,
+      20,
+      50,
+    );
+
+    doc.setFont("helvetica", "normal");
+
+    doc.setFontSize(12);
+    doc.text("RINGKASAN KEUANGAN", 20, 65);
+
+    doc.setFontSize(11);
+    doc.text(`Total Income : ${formatRupiah(totalIncome)}`, 20, 75);
+    doc.text(`Total Expense : ${formatRupiah(totalExpense)}`, 20, 83);
+    doc.text(`Dana Bersih : ${formatRupiah(netProfit)}`, 20, 91);
+
+    doc.text("PEMBAGIAN DANA", 20, 110);
+
+    const payouts = [
+      {
+        name: "Kas",
+        percent: 5,
+        amount: kasAmount,
+      },
+      {
+        name: "Mas Ioo",
+        percent: 33,
+        amount: masIoo,
+      },
+      {
+        name: "Mas Gii",
+        percent: 26,
+        amount: masGii,
+      },
+      {
+        name: "Mas Nero",
+        percent: 26,
+        amount: masNero,
+      },
+      {
+        name: "Mas Aksa",
+        percent: 10,
+        amount: masAksa,
+      },
+    ];
+
+    let y = 120;
+
+    payouts.forEach((payout) => {
+      doc.text(`${payout.name} (${payout.percent}%)`, 20, y);
+
+      doc.text(formatRupiah(Math.round(payout.amount)), 120, y);
+
+      y += 10;
+    });
+
+    doc.setFontSize(12);
+    doc.text(`Total Pembagian: ${formatRupiah(distributableFund)}`, 20, y + 10);
+
+    doc.save(`RISE-Slip-Pembagian-${today}.pdf`);
+  }
+
   async function saveFinanceSettings() {
     const { error } = await supabase
       .from("finance_settings")
@@ -1296,6 +1398,102 @@ ${watchlistNotes || "-"}
     setExpenseCategory("");
     setExpenseAmount("");
     setExpenseNote("");
+  }
+  async function processPayout() {
+    if (distributableFund <= 0) {
+      toast.error("Tidak ada dana yang bisa dibagikan.");
+      return;
+    }
+
+    const payoutPeriodValue = new Date().toISOString().slice(0, 7);
+
+    const alreadyPaidThisPeriod = financePayouts.some(
+      (payout) =>
+        payout.payout_date && payout.payout_date.startsWith(payoutPeriodValue),
+    );
+
+    if (alreadyPaidThisPeriod) {
+      toast.error("Pembagian dana untuk bulan ini sudah pernah diproses.");
+      return;
+    }
+
+    const confirmPayout = confirm(
+      `Proses pembagian dana sebesar ${formatRupiah(distributableFund)}?`,
+    );
+
+    if (!confirmPayout) return;
+
+    const payoutDate = new Date().toISOString().split("T")[0];
+
+    const payouts = [
+      {
+        recipient: "Kas",
+        percentage: 5,
+        amount: Math.round(kasAmount),
+      },
+      {
+        recipient: "Mas Ioo",
+        percentage: 33,
+        amount: Math.round(masIoo),
+      },
+      {
+        recipient: "Mas Gii",
+        percentage: 26,
+        amount: Math.round(masGii),
+      },
+      {
+        recipient: "Mas Nero",
+        percentage: 26,
+        amount: Math.round(masNero),
+      },
+      {
+        recipient: "Mas Aksa",
+        percentage: 10,
+        amount: Math.round(masAksa),
+      },
+    ];
+
+    const { error: payoutError } = await supabase
+      .from("finance_payouts")
+      .insert(
+        payouts.map((payout) => ({
+          payout_date: payoutDate,
+          recipient: payout.recipient,
+          percentage: payout.percentage,
+          amount: payout.amount,
+          description: "Pembagian Dana",
+          status: "PAID",
+        })),
+      );
+
+    if (payoutError) {
+      console.error(payoutError);
+      toast.error("Gagal menyimpan pembagian dana.");
+      return;
+    }
+
+    const { error: expenseError } = await supabase
+      .from("finance_transactions")
+      .insert(
+        payouts.map((payout) => ({
+          transaction_date: payoutDate,
+          transaction_type: "EXPENSE",
+          member_name: null,
+          description: `Pembagian Dana - ${payout.recipient}`,
+          category: "PAYOUT",
+          amount: payout.amount,
+        })),
+      );
+
+    if (expenseError) {
+      console.error(expenseError);
+      toast.error("Payout tersimpan, tetapi transaksi keuangan gagal.");
+      return;
+    }
+
+    toast.success("Pembagian dana berhasil diproses!");
+
+    await getMembers();
   }
   // =========================
   // DELETE SIGNAL
@@ -1400,16 +1598,22 @@ ${watchlistNotes || "-"}
     // FINANCE TRANSACTION
     // =========================
 
-    await supabase.from("finance_transactions").insert([
-      {
-        transaction_date: new Date().toISOString().split("T")[0],
-        transaction_type: "INCOME",
-        member_name: member.nama,
-        description: `Renew ${months} Bulan (${member.member_type})`,
-        category: "MEMBERSHIP",
-        amount: additionalPrice,
-      },
-    ]);
+    const { error: financeError } = await supabase
+      .from("finance_transactions")
+      .insert([
+        {
+          transaction_date: new Date().toISOString().split("T")[0],
+          transaction_type: "INCOME",
+          member_name: member.nama,
+          description: `Perpanjangan Member (${member.member_type})`,
+          category: "RENEWAL",
+          amount: additionalPrice,
+        },
+      ]);
+
+    if (financeError) {
+      console.error("Gagal mencatat income renewal:", financeError);
+    }
     // =========================
     // RENEWAL DM
     // =========================
@@ -1654,17 +1858,56 @@ Rp ${newPrice.toLocaleString("id-ID")}
     .filter((t) => t.transaction_type === "EXPENSE")
     .reduce((total, t) => total + Number(t.amount || 0), 0);
 
+  // DANA BERSIH
   const netProfit = totalIncome - totalExpense;
 
-  const kasAmount = totalIncome * 0.05;
+  // DASAR PEMBAGIAN
+  const distributableFund = Math.max(netProfit, 0);
 
-  const masIoo = totalIncome * 0.33;
+  const currentPayoutPeriod = new Date().toISOString().slice(0, 7);
 
-  const masGii = totalIncome * 0.26;
+  const alreadyPaidThisPeriod = financePayouts.some(
+    (payout) =>
+      payout.payout_date && payout.payout_date.startsWith(currentPayoutPeriod),
+  );
 
-  const masNero = totalIncome * 0.26;
+  const currentPeriodPayouts = financePayouts.filter(
+    (payout) =>
+      payout.payout_date && payout.payout_date.startsWith(currentPayoutPeriod),
+  );
 
-  const masAksa = totalIncome * 0.1;
+  const totalPayoutThisPeriod = currentPeriodPayouts.reduce(
+    (total, payout) => total + Number(payout.amount || 0),
+    0,
+  );
+
+  const payoutRecipientCount = currentPeriodPayouts.length;
+
+  const payoutHistoryByPeriod = financePayouts.reduce(
+    (groups: Record<string, any[]>, payout: any) => {
+      const period = payout.payout_date?.slice(0, 7) || "Tanpa Periode";
+
+      if (!groups[period]) {
+        groups[period] = [];
+      }
+
+      groups[period].push(payout);
+
+      return groups;
+    },
+    {},
+  );
+
+  // PEMBAGIAN DANA
+  const kasAmount = distributableFund * 0.05;
+
+  const masIoo = distributableFund * 0.33;
+
+  const masGii = distributableFund * 0.26;
+
+  const masNero = distributableFund * 0.26;
+
+  const masAksa = distributableFund * 0.1;
 
   const monthlyIncome = Array.from({ length: 12 }, (_, index) => {
     const income = financeTransactions
@@ -1714,6 +1957,29 @@ Rp ${newPrice.toLocaleString("id-ID")}
     return `Rp ${Number(value || 0).toLocaleString("id-ID")}`;
   }
 
+  function formatPayoutPeriod(period: string) {
+    if (!period || period === "Tanpa Periode") return period;
+
+    const [year, month] = period.split("-");
+
+    const monthNames = [
+      "Januari",
+      "Februari",
+      "Maret",
+      "April",
+      "Mei",
+      "Juni",
+      "Juli",
+      "Agustus",
+      "September",
+      "Oktober",
+      "November",
+      "Desember",
+    ];
+
+    return `${monthNames[Number(month) - 1]} ${year}`;
+  }
+
   function formatDate(date: string) {
     if (!date) return "-";
 
@@ -1750,7 +2016,7 @@ Rp ${newPrice.toLocaleString("id-ID")}
     <>
       <Navbar />
 
-      <main className="min-h-screen bg-gradient-to-b from-black via-zinc-950 to-black text-white p-4 md:p-10">
+      <main className="min-h-screen overflow-x-hidden bg-gradient-to-b from-black via-zinc-950 to-black text-white p-3 sm:p-4 md:p-10">
         {/* HEADER */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5 mb-10">
           <div>
@@ -1777,10 +2043,10 @@ Rp ${newPrice.toLocaleString("id-ID")}
           </div>
         </div>
 
-        <div className="flex gap-3 mb-6">
+        <div className="grid grid-cols-2 gap-2 mb-6 sm:grid-cols-4 sm:gap-3">
           <button
             onClick={() => setMode("SIGNAL")}
-            className={`px-6 py-3 rounded-2xl font-bold transition-all ${
+            className={`w-full px-3 py-3 text-xs sm:px-4 sm:text-sm md:px-6 md:text-base rounded-xl md:rounded-2xl font-bold transition-all whitespace-nowrap ${
               mode === "SIGNAL"
                 ? "bg-amber-300 text-black"
                 : "bg-zinc-900 text-zinc-400 border border-white/5"
@@ -1791,7 +2057,7 @@ Rp ${newPrice.toLocaleString("id-ID")}
 
           <button
             onClick={() => setMode("WATCHLIST")}
-            className={`px-6 py-3 rounded-2xl font-bold transition-all ${
+            className={`w-full px-3 py-3 text-xs sm:px-4 sm:text-sm md:px-6 md:text-base rounded-xl md:rounded-2xl font-bold transition-all whitespace-nowrap ${
               mode === "WATCHLIST"
                 ? "bg-cyan-400 text-black"
                 : "bg-zinc-900 text-zinc-400 border border-white/5"
@@ -1802,7 +2068,7 @@ Rp ${newPrice.toLocaleString("id-ID")}
 
           <button
             onClick={() => setMode("MEMBER")}
-            className={`px-6 py-3 rounded-2xl font-bold transition-all ${
+            className={`w-full px-3 py-3 text-xs sm:px-4 sm:text-sm md:px-6 md:text-base rounded-xl md:rounded-2xl font-bold transition-all whitespace-nowrap ${
               mode === "MEMBER"
                 ? "bg-emerald-400 text-black"
                 : "bg-zinc-900 text-zinc-400 border border-white/5"
@@ -1813,7 +2079,7 @@ Rp ${newPrice.toLocaleString("id-ID")}
 
           <button
             onClick={() => setMode("FINANCE")}
-            className={`px-6 py-3 rounded-2xl font-bold transition-all ${
+            className={`w-full px-3 py-3 text-xs sm:px-4 sm:text-sm md:px-6 md:text-base rounded-xl md:rounded-2xl font-bold transition-all whitespace-nowrap ${
               mode === "FINANCE"
                 ? "bg-emerald-500 text-white"
                 : "bg-zinc-900 text-zinc-400 border border-white/5"
@@ -2365,7 +2631,7 @@ placeholder:text-zinc-500
               </h2>
 
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-                <div className="bg-zinc-900 border border-white/10 rounded-2xl p-5">
+                <div className="bg-zinc-900 border border-white/10 rounded-xl md:rounded-2xl p-4 md:p-5 min-w-0">
                   <p className="text-zinc-400 text-sm">Total Member</p>
 
                   <h2 className="text-3xl font-black text-white mt-2">
@@ -2373,7 +2639,7 @@ placeholder:text-zinc-500
                   </h2>
                 </div>
 
-                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-5">
+                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl md:rounded-2xl p-4 md:p-5 min-w-0">
                   <p className="text-emerald-300 text-sm">Member Aktif</p>
 
                   <h2 className="text-3xl font-black text-emerald-400 mt-2">
@@ -2381,7 +2647,7 @@ placeholder:text-zinc-500
                   </h2>
                 </div>
 
-                <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-2xl p-5">
+                <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-xl md:rounded-2xl p-4 md:p-5 min-w-0">
                   <p className="text-cyan-300 text-sm">Harga Member</p>
 
                   <h2 className="text-2xl font-black text-cyan-400 mt-2">
@@ -2389,7 +2655,7 @@ placeholder:text-zinc-500
                   </h2>
                 </div>
 
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-5">
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl md:rounded-2xl p-4 md:p-5 min-w-0">
                   <p className="text-amber-300 text-sm">Total Pemasukan</p>
 
                   <h2 className="text-2xl font-black text-amber-400 mt-2">
@@ -2532,7 +2798,42 @@ transition-all
                 />
               </div>
             </div>
+            <div className="mt-8">
+              <h3 className="text-2xl font-black text-amber-300 mb-5">
+                📜 Riwayat Pembagian Dana
+              </h3>
 
+              {financePayouts.length === 0 ? (
+                <div className="bg-zinc-900 border border-white/10 rounded-xl md:rounded-2xl p-4 md:p-5 min-w-0 text-zinc-500">
+                  Belum ada riwayat pembagian dana.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {financePayouts.map((payout) => (
+                    <div
+                      key={payout.id}
+                      className="bg-zinc-900 border border-white/10 rounded-xl md:rounded-2xl p-4 md:p-5 min-w-0"
+                    >
+                      <div className="flex justify-between">
+                        <span className="font-bold text-white">
+                          {payout.recipient}
+                        </span>
+
+                        <span className="font-black text-emerald-400">
+                          {formatRupiah(Number(payout.amount || 0))}
+                        </span>
+                      </div>
+
+                      <p className="text-sm text-zinc-500 mt-2">
+                        {payout.created_at
+                          ? formatDate(payout.created_at)
+                          : "-"}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="mt-8 mb-8 bg-zinc-900 border border-amber-400/20 rounded-3xl p-6">
               <div className="flex items-center justify-between mb-5">
                 <h2 className="text-2xl font-black text-amber-300">
@@ -2958,13 +3259,13 @@ font-bold
         )}
 
         {mode === "FINANCE" && (
-          <div className="bg-gradient-to-b from-zinc-900 to-black border border-white/10 rounded-3xl p-8">
-            <h2 className="text-3xl font-black text-emerald-400 mb-6">
+          <div className="w-full min-w-0 bg-gradient-to-b from-zinc-900 to-black border border-white/10 rounded-2xl md:rounded-3xl p-4 sm:p-5 md:p-8">
+            <h2 className="text-2xl sm:text-3xl font-black text-emerald-400 mb-5 md:mb-6">
               💰 KEUANGAN
             </h2>
 
-            <div className="grid md:grid-cols-3 gap-4 mb-8">
-              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 mb-6 md:mb-8">
+              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl md:rounded-2xl p-4 md:p-5 min-w-0">
                 <p className="text-emerald-300 text-sm">Total Income</p>
 
                 <h2 className="text-2xl font-black text-emerald-400 mt-2">
@@ -2972,7 +3273,7 @@ font-bold
                 </h2>
               </div>
 
-              <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-5">
+              <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl md:rounded-2xl p-4 md:p-5 min-w-0">
                 <p className="text-rose-300 text-sm">Total Expense</p>
 
                 <h2 className="text-2xl font-black text-rose-400 mt-2">
@@ -2980,11 +3281,18 @@ font-bold
                 </h2>
               </div>
 
-              <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-2xl p-5">
+              <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-xl md:rounded-2xl p-4 md:p-5 min-w-0">
                 <p className="text-cyan-300 text-sm">Net Profit</p>
 
                 <h2 className="text-2xl font-black text-cyan-400 mt-2">
                   {formatRupiah(netProfit)}
+                </h2>
+              </div>
+              <div className="bg-violet-500/10 border border-violet-500/20 rounded-xl md:rounded-2xl p-4 md:p-5 min-w-0">
+                <p className="text-violet-300 text-sm">Dana Tersedia</p>
+
+                <h2 className="text-2xl font-black text-violet-400 mt-2">
+                  {formatRupiah(distributableFund)}
                 </h2>
               </div>
             </div>
@@ -3030,12 +3338,183 @@ font-bold
               rows={4}
             />
 
+            <div className="mt-6 flex flex-col md:flex-row gap-3">
+              <button
+                onClick={saveExpense}
+                className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black font-bold px-6 py-4 rounded-xl transition"
+              >
+                💾 SIMPAN PENGELUARAN
+              </button>
+
+              <button
+                onClick={processPayout}
+                disabled={distributableFund <= 0 || alreadyPaidThisPeriod}
+                className={`flex-1 text-black font-bold px-6 py-4 rounded-xl transition ${
+                  distributableFund <= 0 || alreadyPaidThisPeriod
+                    ? "bg-amber-400 opacity-50 cursor-not-allowed"
+                    : "bg-amber-400 hover:bg-amber-300"
+                }`}
+              >
+                {alreadyPaidThisPeriod
+                  ? "✓ SUDAH DIBAGIKAN BULAN INI"
+                  : "💸 PROSES PEMBAGIAN DANA"}
+              </button>
+            </div>
+
             <button
-              onClick={saveExpense}
-              className="mt-6 bg-emerald-500 hover:bg-emerald-400 text-black font-bold px-6 py-3 rounded-xl"
+              onClick={exportPayoutPDF}
+              className="mt-3 w-full bg-cyan-500 hover:bg-cyan-400 text-black font-bold px-6 py-3 rounded-xl"
             >
-              💾 SIMPAN PENGELUARAN
+              📄 EXPORT SLIP PDF
             </button>
+
+            <div className="mt-10">
+              <h3 className="text-2xl font-black text-amber-300 mb-5">
+                📊 Status Pembagian Bulan Ini
+              </h3>
+
+              <div className="grid md:grid-cols-3 gap-4">
+                <div className="bg-violet-500/10 border border-violet-500/20 rounded-xl md:rounded-2xl p-4 md:p-5 min-w-0">
+                  <p className="text-violet-300 text-sm">Periode</p>
+
+                  <h2 className="text-2xl font-black text-violet-400 mt-2">
+                    {formatPayoutPeriod(currentPayoutPeriod)}
+                  </h2>
+                </div>
+
+                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl md:rounded-2xl p-4 md:p-5 min-w-0">
+                  <p className="text-emerald-300 text-sm">Total Dibagikan</p>
+
+                  <h2 className="text-2xl font-black text-emerald-400 mt-2">
+                    {formatRupiah(totalPayoutThisPeriod)}
+                  </h2>
+                </div>
+
+                <div
+                  className={`border rounded-xl md:rounded-2xl p-4 md:p-5 min-w-0 ${
+                    alreadyPaidThisPeriod
+                      ? "bg-cyan-500/10 border-cyan-500/20"
+                      : "bg-zinc-800 border-white/10"
+                  }`}
+                >
+                  <p
+                    className={`text-sm ${
+                      alreadyPaidThisPeriod ? "text-cyan-300" : "text-zinc-400"
+                    }`}
+                  >
+                    Status
+                  </p>
+
+                  <h2
+                    className={`text-xl font-black mt-2 ${
+                      alreadyPaidThisPeriod ? "text-cyan-400" : "text-zinc-300"
+                    }`}
+                  >
+                    {alreadyPaidThisPeriod
+                      ? `✓ SUDAH DIBAGIKAN (${payoutRecipientCount} PENERIMA)`
+                      : "BELUM DIBAGIKAN"}
+                  </h2>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-10">
+              <h3 className="text-2xl font-black text-amber-300 mb-5">
+                💸 Riwayat Pembagian Dana
+              </h3>
+
+              {financePayouts.length === 0 ? (
+                <div className="bg-black border border-white/10 rounded-2xl p-6 text-zinc-400">
+                  Belum ada pembagian dana.
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {Object.entries(payoutHistoryByPeriod)
+                    .sort(([a], [b]) => b.localeCompare(a))
+                    .map(([period, payouts]: [string, any]) => {
+                      const totalPeriod = payouts.reduce(
+                        (total: number, payout: any) =>
+                          total + Number(payout.amount || 0),
+                        0,
+                      );
+
+                      return (
+                        <div
+                          key={period}
+                          className="bg-black border border-white/10 rounded-2xl overflow-hidden"
+                        >
+                          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 px-5 py-4 bg-zinc-900 border-b border-white/10">
+                            <div>
+                              <p className="text-xs text-zinc-500 uppercase tracking-wider">
+                                Periode Pembagian
+                              </p>
+
+                              <h4 className="text-xl font-black text-amber-300">
+                                📅 {formatPayoutPeriod(period)}
+                              </h4>
+                            </div>
+
+                            <div className="text-left md:text-right">
+                              <p className="text-xs text-zinc-500">
+                                Total Dibagikan
+                              </p>
+
+                              <p className="text-lg font-black text-emerald-400">
+                                {formatRupiah(totalPeriod)}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="overflow-x-auto">
+                            <table className="w-full">
+                              <thead className="bg-zinc-950">
+                                <tr className="text-left text-zinc-400 text-sm">
+                                  <th className="p-4">Tanggal</th>
+                                  <th className="p-4">Penerima</th>
+                                  <th className="p-4">Persentase</th>
+                                  <th className="p-4">Nominal</th>
+                                  <th className="p-4">Status</th>
+                                </tr>
+                              </thead>
+
+                              <tbody>
+                                {payouts.map((payout: any) => (
+                                  <tr
+                                    key={payout.id}
+                                    className="border-t border-white/5 hover:bg-white/[0.02]"
+                                  >
+                                    <td className="p-4 text-zinc-300">
+                                      {formatDate(payout.payout_date)}
+                                    </td>
+
+                                    <td className="p-4 font-bold text-white">
+                                      {payout.recipient}
+                                    </td>
+
+                                    <td className="p-4 text-amber-300">
+                                      {payout.percentage}%
+                                    </td>
+
+                                    <td className="p-4 font-bold text-emerald-400">
+                                      {formatRupiah(payout.amount)}
+                                    </td>
+
+                                    <td className="p-4">
+                                      <span className="inline-flex px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                        ✓ {payout.status}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
 
             <div className="mt-10">
               <h3 className="text-2xl font-black text-amber-300 mb-5">
