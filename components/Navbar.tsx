@@ -13,9 +13,60 @@ export default function Navbar() {
   const [isMember, setIsMember] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
 
+  async function loadNotifications() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    const memberData = localStorage.getItem("rise_member");
+
+    let memberId = null;
+
+    if (memberData) {
+      try {
+        const member = JSON.parse(memberData);
+        memberId = member.id;
+      } catch (error) {
+        console.error("Gagal membaca data member:", error);
+      }
+    }
+
+    let query = supabase
+      .from("notifications")
+      .select("*", {
+        count: "exact",
+        head: true,
+      })
+      .eq("is_read", false);
+
+    // ADMIN
+    if (session) {
+      // Admin melihat semua notifikasi
+    }
+
+    // MEMBER
+    else if (memberId) {
+      query = query.or(`member_id.eq.${memberId},member_id.is.null`);
+    }
+
+    // BELUM LOGIN
+    else {
+      query = query.is("member_id", null);
+    }
+
+    const { count, error } = await query;
+
+    if (error) {
+      console.error("Gagal mengambil jumlah notifikasi:", error);
+      return;
+    }
+
+    setNotificationCount(count || 0);
+  }
+
   useEffect(() => {
-    const handleNotificationsRead = () => {
-      setNotificationCount(0);
+    const handleNotificationsRead = async () => {
+      await loadNotifications();
     };
 
     window.addEventListener("notifications-read", handleNotificationsRead);
@@ -33,17 +84,6 @@ export default function Navbar() {
 
     loadUser();
 
-    async function loadNotifications() {
-      const { count } = await supabase
-        .from("notifications")
-        .select("*", {
-          count: "exact",
-          head: true,
-        })
-        .eq("is_read", false);
-      setNotificationCount(count || 0);
-    }
-
     loadNotifications();
 
     const channel = supabase
@@ -57,15 +97,8 @@ export default function Navbar() {
         },
         async () => {
           console.log("Realtime event received");
-          const { count } = await supabase
-            .from("notifications")
-            .select("*", {
-              count: "exact",
-              head: true,
-            })
-            .eq("is_read", false);
 
-          setNotificationCount(count || 0);
+          await loadNotifications();
         },
       )
       .subscribe();
@@ -144,6 +177,19 @@ export default function Navbar() {
             >
               Dashboard
             </Link>
+
+            {isMember && (
+              <Link
+                href="/account"
+                className={`px-3 md:px-5 py-2 text-sm md:text-base rounded-xl font-bold transition-all ${
+                  pathname === "/account"
+                    ? "bg-yellow-400 text-black"
+                    : "bg-zinc-900 text-white hover:bg-zinc-800"
+                }`}
+              >
+                👤 My Account
+              </Link>
+            )}
 
             {isAdmin && (
               <Link

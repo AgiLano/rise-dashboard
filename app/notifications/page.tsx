@@ -8,12 +8,30 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<any[]>([]);
 
   async function getNotifications() {
-    const { data, error } = await supabase
-      .from("notifications")
-      .select("*")
-      .order("created_at", {
-        ascending: false,
-      });
+    const memberData = localStorage.getItem("rise_member");
+
+    let memberId = null;
+
+    if (memberData) {
+      try {
+        const member = JSON.parse(memberData);
+        memberId = member.id;
+      } catch (error) {
+        console.error("Gagal membaca data member:", error);
+      }
+    }
+
+    let query = supabase.from("notifications").select("*").order("created_at", {
+      ascending: false,
+    });
+
+    if (memberId) {
+      query = query.or(`member_id.eq.${memberId},member_id.is.null`);
+    } else {
+      query = query.is("member_id", null);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error(error);
@@ -22,18 +40,34 @@ export default function NotificationsPage() {
 
     setNotifications(data || []);
 
-    await supabase
-      .from("notifications")
-      .update({
-        is_read: true,
-      })
-      .eq("is_read", false);
+    if (memberId) {
+      await supabase
+        .from("notifications")
+        .update({
+          is_read: true,
+        })
+        .eq("member_id", memberId)
+        .eq("is_read", false);
+    }
 
     window.dispatchEvent(new CustomEvent("notifications-read"));
   }
 
   useEffect(() => {
     getNotifications();
+
+    const memberData = localStorage.getItem("rise_member");
+
+    let currentMemberId = null;
+
+    if (memberData) {
+      try {
+        const member = JSON.parse(memberData);
+        currentMemberId = member.id;
+      } catch (error) {
+        console.error("Gagal membaca data member:", error);
+      }
+    }
 
     const channel = supabase
       .channel("notifications-realtime")
@@ -45,7 +79,16 @@ export default function NotificationsPage() {
           table: "notifications",
         },
         (payload) => {
-          setNotifications((prev) => [payload.new, ...prev]);
+          const newNotification: any = payload.new;
+
+          const isPublicNotification = newNotification.member_id === null;
+
+          const isMemberNotification =
+            currentMemberId && newNotification.member_id === currentMemberId;
+
+          if (isPublicNotification || isMemberNotification) {
+            setNotifications((prev) => [newNotification, ...prev]);
+          }
         },
       )
       .subscribe();
@@ -151,7 +194,13 @@ export default function NotificationsPage() {
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-black text-amber-300">
+                  <h2
+                    className={`text-xl font-black ${
+                      notif.type === "membership"
+                        ? "text-indigo-300"
+                        : "text-amber-300"
+                    }`}
+                  >
                     {notif.title}
                   </h2>
 
@@ -161,38 +210,25 @@ export default function NotificationsPage() {
                 </div>
 
                 <div
-                  className="
-    w-12
-    h-12
-    rounded-2xl
-    bg-amber-300/10
-    border
-    border-amber-300/20
-    flex
-    items-center
-    justify-center
-    text-xl
-  "
+                  className={`w-12 h-12 rounded-2xl border flex items-center justify-center text-xl ${
+                    notif.type === "membership"
+                      ? "bg-indigo-500/10 border-indigo-500/20"
+                      : "bg-amber-300/10 border-amber-300/20"
+                  }`}
                 >
-                  📈
+                  {notif.type === "membership" ? "💎" : "📈"}
                 </div>
               </div>
 
               <div className="mt-5 pt-4 border-t border-white/5 flex items-center justify-between">
                 <div
-                  className="
-      px-3
-      py-1
-      rounded-full
-      text-xs
-      font-bold
-      bg-emerald-500/10
-      text-emerald-400
-      border
-      border-emerald-500/20
-    "
+                  className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                    notif.type === "membership"
+                      ? "bg-indigo-500/10 text-indigo-300 border-indigo-500/20"
+                      : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                  }`}
                 >
-                  ✓ Dibaca
+                  {notif.type === "membership" ? "💎 Membership" : "📈 Signal"}
                 </div>
 
                 <p className="text-zinc-500 text-sm">
