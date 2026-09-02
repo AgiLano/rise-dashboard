@@ -3,7 +3,8 @@ import { sendDirectMessage } from "@/lib/discord";
 
 export async function POST(req: NextRequest) {
   try {
-    const { discordUserId, nama, memberType, endDate } = await req.json();
+    const { discordUserId, nama, memberType, endDate, months } =
+      await req.json();
 
     const message = `✅ Membership Berhasil Diperpanjang!
 
@@ -12,6 +13,10 @@ Halo ${nama} 👋
 Membership ${memberType} kamu telah berhasil diperpanjang.
 
 ━━━━━━━━━━━━━━━━━━
+
+📦 Perpanjangan
+
++${months} Bulan
 
 📅 Berlaku Sampai
 

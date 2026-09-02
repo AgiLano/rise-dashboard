@@ -1629,6 +1629,7 @@ ${watchlistNotes || "-"}
           nama: member.nama,
           memberType: member.member_type,
           endDate: newEndDate,
+          months,
         }),
       });
 
@@ -1644,6 +1645,9 @@ ${member.nama}
 
 📦 Membership
 ${member.member_type}
+
+➕ Perpanjangan
++${months} Bulan
 
 📅 Berlaku Sampai
 ${newEndDate}
