@@ -140,14 +140,15 @@ export default function HistoryPage() {
   };
 
   const totalSignals = filteredSignals.length;
-  const totalRunning = filteredSignals.filter(
+  const totalRunning = signals.filter(
     (signal) => signal.status === "RUNNING",
   ).length;
-  const totalDone = filteredSignals.filter(
-    (signal) => signal.status === "DONE",
-  ).length;
+  const totalDone = signals.filter((signal) => signal.status === "DONE").length;
+  const totalAllSignals = signals.length;
   const winrate =
-    totalSignals > 0 ? ((totalDone / totalSignals) * 100).toFixed(1) : "0";
+    totalAllSignals > 0
+      ? ((totalDone / totalAllSignals) * 100).toFixed(1)
+      : "0";
   const avgProfit =
     filteredSignals.length > 0
       ? (
@@ -230,7 +231,7 @@ export default function HistoryPage() {
       startY: number,
     ): number => {
       const doneCount = signals.filter((s) => s.status === "DONE").length;
-      const runningCount = signals.filter((s) => s.status !== "DONE").length;
+      const runningCount = signals.filter((s) => s.status === "RUNNING").length;
 
       doc.setTextColor(255, 215, 0);
       doc.setFont("helvetica", "bold");
@@ -868,7 +869,7 @@ export default function HistoryPage() {
                           {" • "}
                           Running:{" "}
                           {
-                            groupSignals.filter((s) => s.status !== "DONE")
+                            groupSignals.filter((s) => s.status === "RUNNING")
                               .length
                           }
                         </p>
@@ -886,10 +887,12 @@ export default function HistoryPage() {
                         <div className="space-y-3">
                           {groupSignals
                             .sort((a, b) => {
-                              if (a.status === "DONE" && b.status !== "DONE")
+                              if (a.status === "DONE" && b.status === "RUNNING")
                                 return -1;
-                              if (a.status !== "DONE" && b.status === "DONE")
+
+                              if (a.status === "RUNNING" && b.status === "DONE")
                                 return 1;
+
                               return a.emiten.localeCompare(b.emiten);
                             })
                             .map((signal) => (

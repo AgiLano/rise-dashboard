@@ -434,16 +434,20 @@ export default function Home() {
   // STATS
   // =========================
 
+  // STATISTIK FILTER
   const totalSignals = filteredSignals.length;
 
-  const totalRunning = filteredSignals.filter(
-    (s) => s.status === "RUNNING",
-  ).length;
+  // SIGNAL STATUS - SEMUA SIGNAL
+  const totalRunning = signals.filter((s) => s.status === "RUNNING").length;
 
-  const totalDone = filteredSignals.filter((s) => s.status === "DONE").length;
+  const totalDone = signals.filter((s) => s.status === "DONE").length;
+
+  const totalAllSignals = signals.length;
 
   const winrate =
-    totalSignals > 0 ? ((totalDone / totalSignals) * 100).toFixed(1) : "0";
+    totalAllSignals > 0
+      ? ((totalDone / totalAllSignals) * 100).toFixed(1)
+      : "0";
 
   const avgProfit =
     filteredSignals.length > 0
@@ -990,7 +994,7 @@ export default function Home() {
                       dy="-0.2em"
                       className="text-4xl font-black fill-amber-300"
                     >
-                      {totalSignals}
+                      {totalAllSignals}
                     </tspan>
 
                     <tspan x="50%" dy="1.8em" className="text-sm fill-zinc-400">
