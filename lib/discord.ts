@@ -72,7 +72,7 @@ export async function sendBotLog(message: string) {
     throw new Error("DISCORD_LOG_WEBHOOK tidak ditemukan");
   }
 
-  await fetch(webhook, {
+  const response = await fetch(webhook, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -81,4 +81,10 @@ export async function sendBotLog(message: string) {
       content: message,
     }),
   });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+
+    throw new Error(`Discord Bot Log gagal: ${response.status} ${errorText}`);
+  }
 }
