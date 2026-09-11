@@ -192,14 +192,38 @@ export default function Home() {
   // =========================
 
   async function getSignals() {
-    const { data } = await supabase
-      .from("signals")
-      .select("*")
-      .order("tanggal_signal", {
-        ascending: false,
-      });
+    const pageSize = 1000;
+    let from = 0;
+    let allSignals: any[] = [];
 
-    setSignals(data || []);
+    while (true) {
+      const { data, error } = await supabase
+        .from("signals")
+        .select("*")
+        .order("tanggal_signal", {
+          ascending: false,
+        })
+        .range(from, from + pageSize - 1);
+
+      if (error) {
+        console.error("Gagal mengambil signals:", error);
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        break;
+      }
+
+      allSignals = [...allSignals, ...data];
+
+      if (data.length < pageSize) {
+        break;
+      }
+
+      from += pageSize;
+    }
+
+    setSignals(allSignals);
   }
 
   // =========================

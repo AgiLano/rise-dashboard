@@ -45,19 +45,72 @@ export default function HistoryPage() {
 
   useEffect(() => {
     async function fetchHistoryData() {
-      const { data: signalsData } = await supabase
-        .from("signals")
-        .select("*")
-        .order("tanggal_signal", { ascending: false });
+      // =========================
+      // AMBIL SEMUA SIGNAL
+      // =========================
+      const pageSize = 1000;
+      let from = 0;
+      let allSignals: any[] = [];
 
-      setSignals(signalsData || []);
+      while (true) {
+        const { data, error } = await supabase
+          .from("signals")
+          .select("*")
+          .order("tanggal_signal", { ascending: false })
+          .range(from, from + pageSize - 1);
 
-      const { data: journeyData } = await supabase
-        .from("signals_updates")
-        .select("*")
-        .order("created_at", { ascending: true });
+        if (error) {
+          console.error("Gagal mengambil signals:", error);
+          break;
+        }
 
-      setJourneyData(journeyData || []);
+        if (!data || data.length === 0) {
+          break;
+        }
+
+        allSignals = [...allSignals, ...data];
+
+        if (data.length < pageSize) {
+          break;
+        }
+
+        from += pageSize;
+      }
+
+      setSignals(allSignals);
+
+      // =========================
+      // AMBIL SEMUA JOURNEY
+      // =========================
+      let journeyFrom = 0;
+      let allJourneyData: any[] = [];
+
+      while (true) {
+        const { data, error } = await supabase
+          .from("signals_updates")
+          .select("*")
+          .order("created_at", { ascending: true })
+          .range(journeyFrom, journeyFrom + pageSize - 1);
+
+        if (error) {
+          console.error("Gagal mengambil signals_updates:", error);
+          break;
+        }
+
+        if (!data || data.length === 0) {
+          break;
+        }
+
+        allJourneyData = [...allJourneyData, ...data];
+
+        if (data.length < pageSize) {
+          break;
+        }
+
+        journeyFrom += pageSize;
+      }
+
+      setJourneyData(allJourneyData);
     }
 
     fetchHistoryData();
