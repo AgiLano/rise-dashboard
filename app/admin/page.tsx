@@ -1692,6 +1692,100 @@ Rp ${newPrice.toLocaleString("id-ID")}
     getMembers();
   }
 
+  async function extendMemberDays(id: number, days: number) {
+    const member = members.find((m) => m.id === id);
+
+    if (!member) return;
+
+    const confirmExtend = confirm(
+      `Tambahkan ${days} hari untuk member ${member.nama}?`,
+    );
+
+    if (!confirmExtend) return;
+
+    const today = new Date();
+
+    const currentEnd =
+      new Date(member.end_date) > today ? new Date(member.end_date) : today;
+
+    currentEnd.setDate(currentEnd.getDate() + days);
+
+    const newEndDate = currentEnd.toISOString().split("T")[0];
+
+    const { error } = await supabase
+      .from("members")
+      .update({
+        end_date: newEndDate,
+        is_active: true,
+
+        reminder_7_sent: false,
+        reminder_3_sent: false,
+        reminder_1_sent: false,
+
+        last_reminder_at: null,
+      })
+      .eq("id", id);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    // =========================
+    // DISCORD DM
+    // =========================
+
+    try {
+      await fetch("/api/discord/renewal", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          discordUserId: member.discord_user_id,
+          nama: member.nama,
+          memberType: member.member_type,
+          endDate: newEndDate,
+          days,
+        }),
+      });
+
+      // =========================
+      // BOT LOG
+      // =========================
+
+      await sendBotLog(`🎁 BONUS MEMBERSHIP
+
+━━━━━━━━━━━━━━━━━━
+
+👤 Member
+${member.nama}
+
+📦 Membership
+${member.member_type}
+
+➕ Bonus Perpanjangan
++${days} Hari
+
+📅 Berlaku Sampai
+${newEndDate}
+
+💰 Biaya
+GRATIS
+
+✅ Bonus berhasil diberikan.
+
+🕒 ${new Date().toLocaleString("id-ID")}
+`);
+    } catch (err) {
+      console.error(err);
+    }
+
+    toast.success(`Membership ${member.nama} ditambah ${days} hari`);
+
+    await getMembers();
+  }
+
   async function toggleMemberStatus(id: number, active: boolean) {
     const confirmAction = confirm(
       active ? "Aktifkan member ini?" : "Nonaktifkan member ini?",
@@ -3254,6 +3348,23 @@ font-bold
 "
                             >
                               +12B
+                            </button>
+
+                            <button
+                              onClick={() => extendMemberDays(member.id, 8)}
+                              className="
+bg-amber-500/10
+hover:bg-amber-500/20
+border
+border-amber-500/20
+text-amber-300
+px-3
+py-2
+rounded-xl
+font-bold
+"
+                            >
+                              +8H
                             </button>
 
                             <button
